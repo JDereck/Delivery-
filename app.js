@@ -8,6 +8,7 @@ const CONFIG = {
   horarioFechamento:   "23:00",           // Horário de fechamento HH:MM
   diasFechado:         ["segunda"],       // Dias fechados: domingo|segunda|terça|quarta|quinta|sexta|sábado
   nomeEstabelecimento: "Delivery",        // Nome exibido no topo da página
+  sheetsUrl:           "",               // URL do Google Apps Script (deixe "" para desativar)
 };
 
 // ============================================================
@@ -399,6 +400,33 @@ function renderStatus() {
 }
 
 // ============================================================
+//  INTEGRAÇÃO GOOGLE SHEETS
+// ============================================================
+
+async function registrarNaPlanilha(extras) {
+  const subtotal = calcularSubtotal();
+  const total    = subtotal + CONFIG.taxaEntrega;
+  const payload  = {
+    nome:        extras.nome,
+    endereco:    extras.endereco,
+    pagamento:   extras.pagamento,
+    troco:       extras.troco  || "-",
+    obs:         extras.obs    || "-",
+    itens:       Object.values(carrinho).map(i => ({ nome: i.nome, qty: i.qty, preco: i.preco })),
+    subtotal,
+    taxaEntrega: CONFIG.taxaEntrega,
+    total,
+  };
+
+  await fetch(CONFIG.sheetsUrl, {
+    method:  "POST",
+    mode:    "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body:    JSON.stringify(payload),
+  });
+}
+
+// ============================================================
 //  FORMULÁRIO & WHATSAPP
 // ============================================================
 
@@ -412,7 +440,7 @@ document.getElementById("campo-pagamento").addEventListener("change", function (
   }
 });
 
-document.getElementById("form-pedido").addEventListener("submit", function (e) {
+document.getElementById("form-pedido").addEventListener("submit", async function (e) {
   e.preventDefault();
   const erroEl = document.getElementById("msg-erro");
   erroEl.classList.add("hidden");
@@ -435,6 +463,20 @@ document.getElementById("form-pedido").addEventListener("submit", function (e) {
 
   if (Object.keys(carrinho).length === 0) {
     mostrarErro(erroEl, "Adicione pelo menos um item ao carrinho."); return;
+  }
+
+  const btnFin = document.getElementById("btn-finalizar");
+
+  if (CONFIG.sheetsUrl) {
+    btnFin.disabled = true;
+    btnFin.textContent = "⏳ Registrando pedido...";
+    try {
+      await registrarNaPlanilha({ nome, endereco, pagamento, troco, obs });
+    } catch (err) {
+      console.warn("Planilha indisponível:", err);
+    }
+    btnFin.textContent = "✅ Finalizar no WhatsApp";
+    btnFin.disabled = false;
   }
 
   const mensagem = gerarMensagem(nome, endereco, pagamento, troco, obs);
