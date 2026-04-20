@@ -368,9 +368,10 @@ function renderCarrinho() {
 
   // Resumo
   const subtotal = calcularSubtotal();
-  const total    = subtotal + CONFIG.taxaEntrega;
+  const taxa     = taxaAtual();
+  const total    = subtotal + taxa;
   document.getElementById("subtotal").textContent     = fmt(subtotal);
-  document.getElementById("taxa-entrega").textContent = fmt(CONFIG.taxaEntrega);
+  document.getElementById("taxa-entrega").textContent = fmt(taxa);
   document.getElementById("total").textContent        = fmt(total);
   resumoEl.classList.remove("hidden");
   formEl.classList.remove("hidden");
@@ -401,21 +402,56 @@ function renderStatus() {
 }
 
 // ============================================================
+//  TIPO DE PEDIDO
+// ============================================================
+
+let tipoPedido = "entrega"; // entrega | retirada | local
+
+document.querySelectorAll(".tipo-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tipo-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    tipoPedido = btn.dataset.tipo;
+    atualizarCamposPorTipo();
+    renderCarrinho();
+  });
+});
+
+function atualizarCamposPorTipo() {
+  const endEl  = document.getElementById("campo-endereco");
+  const sugEl  = document.getElementById("enderecos-sugestoes");
+  const ehEntrega = tipoPedido === "entrega";
+
+  endEl.classList.toggle("hidden", !ehEntrega);
+  if (!ehEntrega) {
+    endEl.value = "";
+    sugEl.classList.add("hidden");
+    sugEl.innerHTML = "";
+  }
+}
+
+function taxaAtual() {
+  return tipoPedido === "entrega" ? CONFIG.taxaEntrega : 0;
+}
+
+// ============================================================
 //  INTEGRAÇÃO GOOGLE SHEETS
 // ============================================================
 
 async function registrarNaPlanilha(extras) {
   const subtotal = calcularSubtotal();
-  const total    = subtotal + CONFIG.taxaEntrega;
+  const taxa     = taxaAtual();
+  const total    = subtotal + taxa;
   const payload  = {
+    tipo:        extras.tipo,
     nome:        extras.nome,
-    endereco:    extras.endereco,
+    endereco:    extras.endereco || "—",
     pagamento:   extras.pagamento,
     troco:       extras.troco  || "-",
     obs:         extras.obs    || "-",
     itens:       Object.values(carrinho).map(i => ({ nome: i.nome, qty: i.qty, preco: i.preco })),
     subtotal,
-    taxaEntrega: CONFIG.taxaEntrega,
+    taxaEntrega: taxa,
     total,
   };
 
@@ -514,14 +550,17 @@ document.getElementById("form-pedido").addEventListener("submit", async function
 
   const whatsapp  = document.getElementById("campo-whatsapp").value.replace(/\D/g, "");
   const nome      = document.getElementById("campo-nome").value.trim();
-  const endereco  = document.getElementById("campo-endereco").value.trim();
+  const endereco  = tipoPedido === "entrega"
+    ? document.getElementById("campo-endereco").value.trim() : "";
   const pagamento = document.getElementById("campo-pagamento").value;
   const troco     = document.getElementById("campo-troco").value.trim();
   const obs       = document.getElementById("campo-obs").value.trim();
 
   if (!whatsapp)  { mostrarErro(erroEl, "Informe seu WhatsApp."); return; }
   if (!nome)      { mostrarErro(erroEl, "Informe seu nome."); return; }
-  if (!endereco)  { mostrarErro(erroEl, "Informe o endereço de entrega."); return; }
+  if (tipoPedido === "entrega" && !endereco) {
+    mostrarErro(erroEl, "Informe o endereço de entrega."); return;
+  }
   if (!pagamento) { mostrarErro(erroEl, "Selecione a forma de pagamento."); return; }
   if (pagamento === "Dinheiro" && !troco) {
     mostrarErro(erroEl, "Informe o valor para o troco."); return;
@@ -535,14 +574,14 @@ document.getElementById("form-pedido").addEventListener("submit", async function
   }
 
   const btnFin = document.getElementById("btn-finalizar");
-  const total  = calcularSubtotal() + CONFIG.taxaEntrega;
+  const total  = calcularSubtotal() + taxaAtual();
 
   if (CONFIG.sheetsUrl) {
     btnFin.disabled = true;
     btnFin.textContent = "⏳ Registrando pedido...";
     try {
-      await registrarNaPlanilha({ nome, endereco, pagamento, troco, obs });
-      salvarCliente(whatsapp, nome, endereco, total); // fire-and-forget
+      await registrarNaPlanilha({ tipo: tipoPedido, nome, endereco, pagamento, troco, obs });
+      salvarCliente(whatsapp, nome, endereco, total);
     } catch (err) {
       console.warn("Planilha indisponível:", err);
     }
@@ -550,7 +589,7 @@ document.getElementById("form-pedido").addEventListener("submit", async function
     btnFin.disabled = false;
   }
 
-  const mensagem = gerarMensagem(nome, endereco, pagamento, troco, obs);
+  const mensagem = gerarMensagem(tipoPedido, nome, endereco, pagamento, troco, obs);
   abrirWhatsApp(mensagem);
 });
 
@@ -560,27 +599,29 @@ function mostrarErro(el, texto) {
   el.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-function gerarMensagem(nome, endereco, pagamento, troco, obs) {
+function gerarMensagem(tipo, nome, endereco, pagamento, troco, obs) {
+  const TIPO_LABEL = { entrega: "🛵 ENTREGA", retirada: "🏪 RETIRADA", local: "🍽️ NO LOCAL" };
   const linhasItens = Object.values(carrinho).map(item => {
     const sub = item.preco * item.qty;
     return `  - ${item.nome} x${item.qty} — ${fmt(sub)}`;
   });
 
   const subtotal = calcularSubtotal();
-  const total    = subtotal + CONFIG.taxaEntrega;
+  const taxa     = taxaAtual();
+  const total    = subtotal + taxa;
 
   let pagTxt = `💰 Pagamento: ${pagamento}`;
   if (pagamento === "Dinheiro" && troco) {
     pagTxt += `\n💵 Troco para: ${troco}`;
   }
 
-  let msg = `🛒 *NOVO PEDIDO*\n\n`;
+  let msg = `🛒 *NOVO PEDIDO — ${TIPO_LABEL[tipo] || "ENTREGA"}*\n\n`;
   msg += `👤 Nome: ${nome}\n`;
-  msg += `📍 Endereço: ${endereco}\n\n`;
-  msg += `🍔 *Itens:*\n${linhasItens.join("\n")}\n\n`;
+  if (tipo === "entrega") msg += `📍 Endereço: ${endereco}\n`;
+  msg += `\n🍔 *Itens:*\n${linhasItens.join("\n")}\n\n`;
   msg += `${pagTxt}\n`;
-  msg += `🚚 Taxa de entrega: ${fmt(CONFIG.taxaEntrega)}\n\n`;
-  msg += `💵 *Total: ${fmt(total)}*`;
+  if (tipo === "entrega") msg += `🚚 Taxa de entrega: ${fmt(taxa)}\n`;
+  msg += `\n💵 *Total: ${fmt(total)}*`;
   if (obs) msg += `\n\n📝 Obs: ${obs}`;
 
   return msg;

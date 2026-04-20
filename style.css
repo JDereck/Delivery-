@@ -489,6 +489,24 @@ header h1 {
   background: rgba(249,115,22,.1); color: var(--accent);
 }
 
+/* ── TIPO DE PEDIDO ── */
+.tipo-pedido {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem; margin-bottom: 0.25rem;
+}
+
+.tipo-btn {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  color: var(--subtext); border-radius: 10px;
+  padding: 0.55rem 0.4rem; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.tipo-btn:hover { border-color: var(--accent); color: var(--text); }
+.tipo-btn.active {
+  background: rgba(249,115,22,.12);
+  border-color: var(--accent); color: var(--accent);
+}
+
 .form-pedido input,
 .form-pedido select,
 .form-pedido textarea {

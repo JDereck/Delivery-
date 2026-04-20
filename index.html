@@ -41,6 +41,14 @@
       </div>
 
       <form id="form-pedido" class="form-pedido hidden" novalidate>
+
+        <!-- Tipo de pedido -->
+        <div class="tipo-pedido">
+          <button type="button" class="tipo-btn active" data-tipo="entrega">🛵 Entrega</button>
+          <button type="button" class="tipo-btn" data-tipo="retirada">🏪 Retirar</button>
+          <button type="button" class="tipo-btn" data-tipo="local">🍽️ No local</button>
+        </div>
+
         <div class="campo-wpp-wrap">
           <input type="tel" id="campo-whatsapp" placeholder="Seu WhatsApp (DDD + número) *"
                  autocomplete="tel" inputmode="numeric" maxlength="15">

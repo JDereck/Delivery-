@@ -14,7 +14,7 @@
 const CAB_PEDIDOS = [
   "Data/Hora", "Nome", "Endereço", "Pagamento", "Troco",
   "Itens", "Subtotal (R$)", "Taxa Entrega (R$)", "Total (R$)", "Observações",
-  "Status", "Motivo Cancelamento",
+  "Status", "Motivo Cancelamento", "Tipo",
 ];
 
 const CAB_CARDAPIO = [
@@ -76,7 +76,7 @@ function doPost(e) {
     sheet.appendRow([
       new Date(),
       dados.nome,
-      dados.endereco,
+      dados.endereco   || "—",
       dados.pagamento,
       dados.troco      || "-",
       itensTexto,
@@ -86,6 +86,7 @@ function doPost(e) {
       dados.obs        || "-",
       "Novo",
       "",
+      dados.tipo       || "entrega",
     ]);
 
     return jsonResp({ ok: true });
@@ -230,6 +231,7 @@ function listarPedidos() {
       obs:       String(r[9]  || ""),
       status:    String(r[10] || "Novo"),
       motivo:    String(r[11] || ""),
+      tipo:      String(r[12] || "entrega"),
     });
   }
   pedidos.reverse();

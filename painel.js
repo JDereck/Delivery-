@@ -156,15 +156,22 @@ function renderPedidos() {
     : lista.map(renderCard).join("");
 }
 
+const TIPO_ICON = { entrega: "🛵", retirada: "🏪", local: "🍽️" };
+const TIPO_LABEL = { entrega: "Entrega", retirada: "Retirada", local: "No local" };
+
 function renderCard(p) {
   const num      = `#${String(p.row - 1).padStart(3, "0")}`;
   const hora     = p.dataHora ? formatarHora(p.dataHora) : "—";
+  const tipo     = p.tipo || "entrega";
+  const tipoHtml = `<span class="tipo-badge tipo-${esc(tipo)}">${TIPO_ICON[tipo] || "🛵"} ${TIPO_LABEL[tipo] || tipo}</span>`;
   const itensHtml = p.itens.split(" | ")
     .map(i => `<span class="card-item-linha">${esc(i)}</span>`).join("");
   const obsHtml  = (p.obs && p.obs !== "-")
     ? `<div class="card-obs">${esc(p.obs)}</div>` : "";
   const motivoHtml = (p.status === "Cancelado" && p.motivo)
     ? `<div class="motivo-cancelamento">${esc(p.motivo)}</div>` : "";
+  const enderecoHtml = tipo === "entrega"
+    ? `<div class="card-endereco">📍 ${esc(p.endereco)}</div>` : "";
 
   return `
     <div class="pedido-card" data-row="${p.row}">
@@ -173,11 +180,14 @@ function renderCard(p) {
           <span class="card-num">Pedido ${num}</span>
           <span class="card-hora"> · ${hora}</span>
         </div>
-        <span class="status-pill status-${esc(p.status)}">${esc(p.status)}</span>
+        <div style="display:flex;gap:.4rem;align-items:center">
+          ${tipoHtml}
+          <span class="status-pill status-${esc(p.status)}">${esc(p.status)}</span>
+        </div>
       </div>
       <div class="card-body">
         <div class="card-cliente">${esc(p.nome)}</div>
-        <div class="card-endereco">📍 ${esc(p.endereco)}</div>
+        ${enderecoHtml}
         <div class="card-itens">${itensHtml}</div>
         ${obsHtml}
       </div>
