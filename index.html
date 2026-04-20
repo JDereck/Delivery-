@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery — Cardápio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-left">
+      <h1 id="nome-estabelecimento">Delivery</h1>
+      <span id="status-horario" class="badge-status"></span>
+    </div>
+    <button id="btn-carrinho-mobile" class="btn-cart-mobile" aria-label="Abrir carrinho">
+      🛒 <span id="badge-mobile" class="badge hidden">0</span>
+    </button>
+  </header>
+
+  <nav id="nav-categorias" class="nav-cat" aria-label="Categorias do cardápio"></nav>
+
+  <div class="layout">
+
+    <main id="cardapio" class="cardapio"></main>
+
+    <aside id="painel-carrinho" class="painel-carrinho">
+      <div class="carrinho-header">
+        <h2>🛒 Seu Pedido</h2>
+        <button id="btn-fechar-carrinho" class="btn-fechar" aria-label="Fechar carrinho">✕</button>
+      </div>
+
+      <div id="itens-carrinho" class="itens-carrinho">
+        <p class="carrinho-vazio">Nenhum item adicionado ainda.</p>
+      </div>
+
+      <div id="resumo" class="resumo hidden">
+        <div class="resumo-linha"><span>Subtotal</span><span id="subtotal">R$ 0,00</span></div>
+        <div class="resumo-linha"><span>Taxa de entrega</span><span id="taxa-entrega">R$ 0,00</span></div>
+        <div class="resumo-linha total"><span>Total</span><span id="total">R$ 0,00</span></div>
+      </div>
+
+      <form id="form-pedido" class="form-pedido hidden" novalidate>
+        <input  type="text"   id="campo-nome"      placeholder="Seu nome completo *" autocomplete="name">
+        <input  type="text"   id="campo-endereco"  placeholder="Endereço (Rua, nº, bairro) *" autocomplete="street-address">
+        <select id="campo-pagamento">
+          <option value="">Forma de pagamento *</option>
+          <option value="Pix">Pix</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Cartão">Cartão</option>
+        </select>
+        <input  type="text"   id="campo-troco"     placeholder="Troco para quanto? (ex: R$ 50)" class="hidden">
+        <textarea             id="campo-obs"        placeholder="Observações / Adicionais (opcional)" rows="3"></textarea>
+        <p id="msg-erro" class="msg-erro hidden"></p>
+        <button type="submit" id="btn-finalizar">✅ Finalizar no WhatsApp</button>
+      </form>
+
+      <div id="aviso-fechado" class="aviso-fechado hidden">
+        <p id="texto-fechado"></p>
+      </div>
+    </aside>
+
+  </div>
+
+  <div id="overlay" class="overlay hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
