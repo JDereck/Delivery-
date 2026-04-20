@@ -8,7 +8,7 @@ const CONFIG = {
   horarioFechamento:   "23:00",           // Horário de fechamento HH:MM
   diasFechado:         ["segunda"],       // Dias fechados: domingo|segunda|terça|quarta|quinta|sexta|sábado
   nomeEstabelecimento: "Delivery",        // Nome exibido no topo da página
-  sheetsUrl:           "",               // URL do Google Apps Script (deixe "" para desativar)
+  sheetsUrl:           "https://script.google.com/macros/s/AKfycbwFULG1apfUznb-STLdBkL2GCLYSvPOZlFHqOVVdNxheXxr1sFVVSda4KDdbWLaZlK_/exec",               // URL do Google Apps Script (deixe "" para desativar)
 };
 
 // ============================================================
@@ -457,7 +457,7 @@ async function registrarNaPlanilha(extras) {
 
   await fetch(CONFIG.sheetsUrl, {
     method:  "POST",
-    mode:    "no-cors",
+    mode:    "cors",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body:    JSON.stringify(payload),
   });
