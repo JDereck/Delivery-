@@ -544,15 +544,40 @@ document.getElementById("btn-fechar-carrinho").addEventListener("click", fecharP
 overlay.addEventListener("click", fecharPainel);
 
 // ============================================================
+//  FASE 3 — CARDÁPIO DA PLANILHA
+// ============================================================
+
+async function carregarCardapio() {
+  const cardapioEl = document.getElementById("cardapio");
+  cardapioEl.innerHTML = '<p style="color:var(--subtext);padding:2rem 20px;text-align:center">⏳ Carregando cardápio...</p>';
+
+  try {
+    const res  = await fetch(`${CONFIG.sheetsUrl}?action=cardapio`);
+    const data = await res.json();
+
+    if (data.ok && Array.isArray(data.produtos) && data.produtos.length > 0) {
+      PRODUTOS.length = 0;
+      data.produtos.forEach(p => PRODUTOS.push(p));
+    }
+  } catch (err) {
+    console.warn("Cardápio da planilha indisponível, usando dados locais:", err);
+  }
+}
+
+// ============================================================
 //  INICIALIZAÇÃO
 // ============================================================
 
-document.getElementById("nome-estabelecimento").textContent = CONFIG.nomeEstabelecimento;
-document.title = CONFIG.nomeEstabelecimento + " — Cardápio";
+async function init() {
+  document.getElementById("nome-estabelecimento").textContent = CONFIG.nomeEstabelecimento;
+  document.title = CONFIG.nomeEstabelecimento + " — Cardápio";
 
-renderCardapio();
-renderCarrinho();
-renderStatus();
+  if (CONFIG.sheetsUrl) await carregarCardapio();
 
-// Atualiza status a cada minuto
-setInterval(renderStatus, 60_000);
+  renderCardapio();
+  renderCarrinho();
+  renderStatus();
+  setInterval(renderStatus, 60_000);
+}
+
+init();
