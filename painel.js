@@ -2,12 +2,12 @@
 //  CONFIG — mesma URL usada em app.js
 // ============================================================
 const CONFIG = {
-  sheetsUrl:           "",        // ← cole aqui a URL do Apps Script
-  nomeEstabelecimento: "Delivery",
-  horarioAbertura:     "18:00",
-  horarioFechamento:   "23:00",
-  diasFechado:         ["segunda"],
-  intervaloAtualizacao: 30,       // segundos entre cada refresh automático
+  sheetsUrl:            "",         // ← cole aqui a URL do Apps Script
+  nomeEstabelecimento:  "Delivery",
+  horarioAbertura:      "18:00",
+  horarioFechamento:    "23:00",
+  diasFechado:          ["segunda"],
+  intervaloAtualizacao: 30,         // segundos entre cada refresh automático
 };
 
 // ============================================================
@@ -15,9 +15,10 @@ const CONFIG = {
 // ============================================================
 let todosOsPedidos   = [];
 let filtroAtual      = "todos";
-let pendenteCancelar = null; // { row, nome }
+let pendenteCancelar = null;
 let idsConhecidos    = new Set();
 let primeiraLeitura  = true;
+let abaAtual         = "pedidos";
 
 const DIAS_PT = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
@@ -35,35 +36,47 @@ function verificarHorario() {
 }
 
 // ============================================================
+//  TROCA DE ABAS
+// ============================================================
+function ativarAba(aba) {
+  abaAtual = aba;
+
+  document.querySelectorAll(".tab-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.aba === aba));
+
+  document.getElementById("sec-pedidos").classList.toggle("hidden", aba !== "pedidos");
+  document.getElementById("sec-cardapio").classList.toggle("hidden", aba !== "cardapio");
+  document.getElementById("sec-config").classList.toggle("hidden", aba !== "config");
+
+  // Botão refresh: faz sentido só na aba pedidos
+  document.getElementById("btn-refresh").style.display = aba === "pedidos" ? "" : "none";
+
+  if (aba === "cardapio") carregarCardapioEditor();
+  if (aba === "config")   carregarConfig();
+}
+
+document.querySelectorAll(".tab-btn").forEach(btn =>
+  btn.addEventListener("click", () => ativarAba(btn.dataset.aba)));
+
+// ============================================================
 //  API
 // ============================================================
-async function fetchPedidos() {
-  const res  = await fetch(`${CONFIG.sheetsUrl}?action=pedidos`);
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.erro || "Erro ao buscar pedidos");
-  return data.pedidos;
+async function apiGet(params) {
+  const url = CONFIG.sheetsUrl + "?" + new URLSearchParams(params).toString();
+  const res  = await fetch(url);
+  return res.json();
 }
 
-async function apiStatus(row, status) {
-  const url = `${CONFIG.sheetsUrl}?action=status&row=${row}&status=${encodeURIComponent(status)}`;
-  const res  = await fetch(url);
-  const data = await res.json();
-  return data.ok;
-}
-
-async function apiCancelar(row, motivo) {
-  const url = `${CONFIG.sheetsUrl}?action=cancelar&row=${row}&motivo=${encodeURIComponent(motivo)}`;
-  const res  = await fetch(url);
-  const data = await res.json();
-  return data.ok;
-}
+async function fetchPedidos()            { return apiGet({ action: "pedidos" }); }
+async function apiStatus(row, status)    { return apiGet({ action: "status",   row, status }); }
+async function apiCancelar(row, motivo)  { return apiGet({ action: "cancelar", row, motivo }); }
 
 // ============================================================
 //  SOM DE NOTIFICAÇÃO
 // ============================================================
 function tocarNotificacao() {
   try {
-    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     [0, 0.18].forEach(delay => {
       const osc  = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -80,7 +93,7 @@ function tocarNotificacao() {
 }
 
 // ============================================================
-//  ATUALIZAÇÃO PRINCIPAL
+//  ATUALIZAÇÃO DE PEDIDOS
 // ============================================================
 async function atualizar() {
   if (!CONFIG.sheetsUrl) {
@@ -88,20 +101,19 @@ async function atualizar() {
       '<p class="empty">⚙️ Configure <code>sheetsUrl</code> em <strong>painel.js</strong> para começar.</p>';
     return;
   }
-
   try {
-    const pedidos = await fetchPedidos();
-    todosOsPedidos = pedidos;
+    const data = await fetchPedidos();
+    if (!data.ok) throw new Error(data.erro);
+    todosOsPedidos = data.pedidos;
 
-    // Detecta pedidos novos após primeira leitura
     if (!primeiraLeitura) {
-      const novos = pedidos.filter(p => !idsConhecidos.has(p.row) && p.status === "Novo");
+      const novos = data.pedidos.filter(p => !idsConhecidos.has(p.row) && p.status === "Novo");
       if (novos.length > 0) tocarNotificacao();
     }
-    pedidos.forEach(p => idsConhecidos.add(p.row));
+    data.pedidos.forEach(p => idsConhecidos.add(p.row));
     primeiraLeitura = false;
 
-    renderResumo(pedidos);
+    renderResumo(data.pedidos);
     renderPedidos();
     atualizarTimestamp();
   } catch (err) {
@@ -114,57 +126,44 @@ async function atualizar() {
 //  RENDERIZAÇÃO — RESUMO
 // ============================================================
 function renderResumo(pedidos) {
-  const hoje = new Date().toDateString();
+  const hoje  = new Date().toDateString();
   const doDia = pedidos.filter(p => p.dataHora && new Date(p.dataHora).toDateString() === hoje);
 
   const faturamento = doDia
     .filter(p => p.status !== "Cancelado")
     .reduce((s, p) => s + p.total, 0);
 
-  const emAberto = doDia.filter(p => ["Novo","Em Preparo","Saiu pra Entrega"].includes(p.status)).length;
-  const cancelados = doDia.filter(p => p.status === "Cancelado").length;
-
-  document.getElementById("total-pedidos").textContent    = doDia.length;
+  document.getElementById("total-pedidos").textContent     = doDia.length;
   document.getElementById("total-faturamento").textContent = fmt(faturamento);
-  document.getElementById("total-aberto").textContent     = emAberto;
-  document.getElementById("total-cancelados").textContent = cancelados;
+  document.getElementById("total-aberto").textContent =
+    doDia.filter(p => ["Novo","Em Preparo","Saiu pra Entrega"].includes(p.status)).length;
+  document.getElementById("total-cancelados").textContent =
+    doDia.filter(p => p.status === "Cancelado").length;
 }
 
 // ============================================================
-//  RENDERIZAÇÃO — CARDS DE PEDIDO
+//  RENDERIZAÇÃO — PEDIDOS
 // ============================================================
 function renderPedidos() {
-  const grid = document.getElementById("pedidos-grid");
-
-  let lista = filtroAtual === "todos"
+  const grid  = document.getElementById("pedidos-grid");
+  const lista = filtroAtual === "todos"
     ? todosOsPedidos
     : todosOsPedidos.filter(p => p.status === filtroAtual);
 
-  if (lista.length === 0) {
-    grid.innerHTML = '<p class="empty">Nenhum pedido encontrado.</p>';
-    return;
-  }
-
-  grid.innerHTML = lista.map(renderCard).join("");
+  grid.innerHTML = lista.length === 0
+    ? '<p class="empty">Nenhum pedido encontrado.</p>'
+    : lista.map(renderCard).join("");
 }
 
 function renderCard(p) {
-  const num   = `#${String(p.row - 1).padStart(3, "0")}`;
-  const hora  = p.dataHora ? formatarHora(p.dataHora) : "—";
-  const itensHtml = p.itens
-    .split(" | ")
-    .map(i => `<span class="card-item-linha">${esc(i)}</span>`)
-    .join("");
-
-  const obsHtml = (p.obs && p.obs !== "-")
-    ? `<div class="card-obs">${esc(p.obs)}</div>`
-    : "";
-
+  const num      = `#${String(p.row - 1).padStart(3, "0")}`;
+  const hora     = p.dataHora ? formatarHora(p.dataHora) : "—";
+  const itensHtml = p.itens.split(" | ")
+    .map(i => `<span class="card-item-linha">${esc(i)}</span>`).join("");
+  const obsHtml  = (p.obs && p.obs !== "-")
+    ? `<div class="card-obs">${esc(p.obs)}</div>` : "";
   const motivoHtml = (p.status === "Cancelado" && p.motivo)
-    ? `<div class="motivo-cancelamento">${esc(p.motivo)}</div>`
-    : "";
-
-  const acoes = renderAcoes(p);
+    ? `<div class="motivo-cancelamento">${esc(p.motivo)}</div>` : "";
 
   return `
     <div class="pedido-card" data-row="${p.row}">
@@ -187,22 +186,19 @@ function renderCard(p) {
           <div class="card-pagamento">💰 ${esc(p.pagamento)}${p.troco && p.troco !== "-" ? ` · Troco: ${esc(p.troco)}` : ""}</div>
         </div>
       </div>
-      ${acoes}
+      ${renderAcoes(p)}
       ${motivoHtml}
     </div>`;
 }
 
 function renderAcoes(p) {
   if (p.status === "Entregue" || p.status === "Cancelado") return "";
-
   const proximo = {
-    "Novo":              { label: "▶ Em Preparo",      classe: "azul",  valor: "Em Preparo"       },
-    "Em Preparo":        { label: "🛵 Saiu pra Entrega", classe: "roxo",  valor: "Saiu pra Entrega" },
-    "Saiu pra Entrega":  { label: "✅ Entregue",         classe: "verde", valor: "Entregue"         },
+    "Novo":             { label: "▶ Em Preparo",       classe: "azul",  valor: "Em Preparo" },
+    "Em Preparo":       { label: "🛵 Saiu pra Entrega", classe: "roxo",  valor: "Saiu pra Entrega" },
+    "Saiu pra Entrega": { label: "✅ Entregue",          classe: "verde", valor: "Entregue" },
   }[p.status];
-
   if (!proximo) return "";
-
   return `
     <div class="card-acoes">
       <button class="btn-avancar ${proximo.classe}"
@@ -217,18 +213,16 @@ function renderAcoes(p) {
 }
 
 // ============================================================
-//  AÇÕES
+//  AÇÕES DE PEDIDO
 // ============================================================
 async function avancarStatus(row, novoStatus) {
   const btn = document.querySelector(`[data-row="${row}"] .btn-avancar`);
   if (btn) { btn.disabled = true; btn.textContent = "⏳"; }
-
-  const ok = await apiStatus(row, novoStatus);
-  if (ok) {
+  const data = await apiStatus(row, novoStatus);
+  if (data.ok) {
     const idx = todosOsPedidos.findIndex(p => p.row === row);
     if (idx !== -1) todosOsPedidos[idx].status = novoStatus;
-    renderPedidos();
-    renderResumo(todosOsPedidos);
+    renderPedidos(); renderResumo(todosOsPedidos);
   } else {
     if (btn) { btn.disabled = false; btn.textContent = "Erro — tente novamente"; }
   }
@@ -249,26 +243,258 @@ function fecharModal() {
 async function confirmarCancelamento() {
   if (!pendenteCancelar) return;
   const motivo = document.getElementById("motivo-cancelamento").value.trim() || "Sem motivo informado";
-  const { row } = pendenteCancelar;
+  const btnEl  = document.getElementById("btn-confirmar-cancelar");
+  btnEl.disabled = true; btnEl.textContent = "⏳ Cancelando...";
 
-  document.getElementById("btn-confirmar-cancelar").disabled = true;
-  document.getElementById("btn-confirmar-cancelar").textContent = "⏳ Cancelando...";
-
-  const ok = await apiCancelar(row, motivo);
+  const data = await apiCancelar(pendenteCancelar.row, motivo);
   fecharModal();
+  if (data.ok) {
+    const idx = todosOsPedidos.findIndex(p => p.row === pendenteCancelar?.row);
+    if (idx !== -1) { todosOsPedidos[idx].status = "Cancelado"; todosOsPedidos[idx].motivo = motivo; }
+    renderPedidos(); renderResumo(todosOsPedidos);
+  }
+  btnEl.disabled = false; btnEl.textContent = "Confirmar cancelamento";
+}
 
-  if (ok) {
-    const idx = todosOsPedidos.findIndex(p => p.row === row);
-    if (idx !== -1) {
-      todosOsPedidos[idx].status = "Cancelado";
-      todosOsPedidos[idx].motivo = motivo;
-    }
-    renderPedidos();
-    renderResumo(todosOsPedidos);
+// ============================================================
+//  CARDÁPIO EDITOR
+// ============================================================
+let produtosEditor = [];
+
+async function carregarCardapioEditor() {
+  const grid = document.getElementById("editor-grid");
+  grid.innerHTML = '<p class="loading">⏳ Carregando cardápio...</p>';
+
+  if (!CONFIG.sheetsUrl) {
+    grid.innerHTML = '<p class="empty">⚙️ Configure <code>sheetsUrl</code> em painel.js</p>';
+    return;
   }
 
-  document.getElementById("btn-confirmar-cancelar").disabled = false;
-  document.getElementById("btn-confirmar-cancelar").textContent = "Confirmar cancelamento";
+  try {
+    const data = await apiGet({ action: "cardapioeditor" });
+    if (!data.ok) throw new Error(data.erro);
+    produtosEditor = data.produtos;
+    renderCardapioEditor();
+  } catch (err) {
+    grid.innerHTML = `<p class="empty">⚠️ Erro ao carregar: ${esc(err.message)}</p>`;
+  }
+}
+
+function renderCardapioEditor() {
+  const grid = document.getElementById("editor-grid");
+  if (produtosEditor.length === 0) {
+    grid.innerHTML = '<p class="empty">Nenhum produto encontrado na planilha.</p>';
+    return;
+  }
+
+  // Agrupa por categoria
+  const grupos = {};
+  produtosEditor.forEach(p => {
+    if (!grupos[p.cat]) grupos[p.cat] = [];
+    grupos[p.cat].push(p);
+  });
+
+  let html = "";
+  for (const [cat, prods] of Object.entries(grupos)) {
+    html += `<div class="editor-cat-title">${esc(cat)}</div>`;
+    prods.forEach(p => { html += renderEditorCard(p); });
+  }
+  grid.innerHTML = html;
+}
+
+function renderEditorCard(p) {
+  const inativo  = !p.disponivel ? "inativo" : "";
+  const checked  = p.disponivel  ? "checked" : "";
+
+  let precoHtml = "";
+  if (p.vs) {
+    // Produto com variantes
+    const varsHtml = p.vs.map(v => `
+      <div class="editor-var-row">
+        <span class="editor-var-nome">${esc(v.l)}</span>
+        <div class="editor-var-right">
+          <span class="editor-preco-val"
+            onclick="iniciarEdicaoPreco(this, ${p.row}, ${v.vcol}, ${v.p})"
+            data-row="${p.row}" data-col="${v.vcol}">
+            ${fmt(v.p)}
+          </span>
+          <label class="toggle" title="${v.disp ? "Desativar" : "Ativar"}">
+            <input type="checkbox" ${v.disp ? "checked" : ""}
+              onchange="onToggleVar(this, ${p.row}, ${v.vcol})">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>`).join("");
+    precoHtml = `<div class="editor-vars">${varsHtml}</div>`;
+  } else {
+    precoHtml = `
+      <div class="editor-preco-wrap">
+        <span class="editor-preco-label">Preço:</span>
+        <span class="editor-preco-val"
+          onclick="iniciarEdicaoPreco(this, ${p.row}, ${p.pcol}, ${p.p})"
+          data-row="${p.row}" data-col="${p.pcol}">
+          ${fmt(p.p)}
+        </span>
+      </div>`;
+  }
+
+  return `
+    <div class="editor-card ${inativo}" data-row="${p.row}">
+      <div class="editor-card-top">
+        <span class="editor-nome">${esc(p.nome)}</span>
+        <div class="toggle-wrap">
+          <span class="toggle-label">${p.disponivel ? "Ativo" : "Inativo"}</span>
+          <label class="toggle" title="${p.disponivel ? "Desativar produto" : "Ativar produto"}">
+            <input type="checkbox" ${checked}
+              onchange="onToggleProd(this, ${p.row})">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      ${precoHtml}
+    </div>`;
+}
+
+// Toggle produto inteiro
+async function onToggleProd(el, row) {
+  el.disabled = true;
+  const valor = el.checked ? "SIM" : "NÃO";
+  const data  = await apiGet({ action: "toggleprod", row, valor });
+  el.disabled = false;
+  if (data.ok) {
+    const idx = produtosEditor.findIndex(p => p.row === row);
+    if (idx !== -1) {
+      produtosEditor[idx].disponivel = el.checked;
+      // Atualiza visual sem re-renderizar tudo
+      const card = document.querySelector(`.editor-card[data-row="${row}"]`);
+      if (card) {
+        card.classList.toggle("inativo", !el.checked);
+        const lbl = card.querySelector(".toggle-label");
+        if (lbl) lbl.textContent = el.checked ? "Ativo" : "Inativo";
+      }
+    }
+  } else {
+    el.checked = !el.checked; // reverte
+  }
+}
+
+// Toggle variante
+async function onToggleVar(el, row, vcol) {
+  el.disabled = true;
+  const valor = el.checked ? "SIM" : "NÃO";
+  const data  = await apiGet({ action: "togglevar", row, vcol, valor });
+  el.disabled = false;
+  if (!data.ok) el.checked = !el.checked; // reverte em caso de erro
+}
+
+// Edição inline de preço
+function iniciarEdicaoPreco(el, row, col, precoAtual) {
+  if (el.querySelector("input")) return; // já editando
+
+  const span = el;
+  const val  = String(precoAtual).replace(",", ".");
+  span.innerHTML = `<input class="editor-preco-input" type="number" value="${val}"
+    min="0" step="0.50" autofocus
+    onclick="event.stopPropagation()"
+    onkeydown="onPrecoKeydown(event, this, ${row}, ${col})"
+    onblur="confirmarPreco(this, ${row}, ${col})">`;
+  span.querySelector("input").select();
+}
+
+function onPrecoKeydown(e, input, row, col) {
+  if (e.key === "Enter")  { e.preventDefault(); confirmarPreco(input, row, col); }
+  if (e.key === "Escape") { carregarCardapioEditor(); } // recarrega cancelando
+}
+
+async function confirmarPreco(input, row, col) {
+  const val = parseFloat(input.value);
+  if (isNaN(val) || val < 0) { carregarCardapioEditor(); return; }
+
+  const span = input.closest(".editor-preco-val");
+  if (span) span.textContent = "⏳";
+
+  const data = await apiGet({ action: "updatepreco", row, col, valor: val.toFixed(2) });
+  if (data.ok) {
+    // Atualiza estado local
+    const idx = produtosEditor.findIndex(p => p.row === row);
+    if (idx !== -1) {
+      const prod = produtosEditor[idx];
+      if (prod.vs) {
+        const vi = prod.vs.findIndex(v => v.vcol === col);
+        if (vi !== -1) prod.vs[vi].p = val;
+      } else {
+        prod.p = val;
+      }
+    }
+    if (span) span.textContent = fmt(val);
+    // Restaura onclick
+    if (span) span.setAttribute("onclick", `iniciarEdicaoPreco(this, ${row}, ${col}, ${val})`);
+  } else {
+    carregarCardapioEditor(); // recarrega em caso de erro
+  }
+}
+
+// ============================================================
+//  CONFIGURAÇÕES
+// ============================================================
+async function carregarConfig() {
+  if (!CONFIG.sheetsUrl) {
+    mostrarMsgConfig("⚙️ Configure sheetsUrl em painel.js primeiro.", "err");
+    return;
+  }
+  try {
+    const data = await apiGet({ action: "config" });
+    if (!data.ok) throw new Error(data.erro);
+    const c = data.config;
+    if (c.whatsapp)            document.getElementById("cfg-whatsapp").value  = c.whatsapp;
+    if (c.nomeEstabelecimento) document.getElementById("cfg-nome").value      = c.nomeEstabelecimento;
+    if (c.taxaEntrega !== undefined) document.getElementById("cfg-taxa").value = c.taxaEntrega;
+    if (c.horarioAbertura)     document.getElementById("cfg-abertura").value   = c.horarioAbertura;
+    if (c.horarioFechamento)   document.getElementById("cfg-fechamento").value = c.horarioFechamento;
+
+    // Dias fechados
+    const dias = Array.isArray(c.diasFechado) ? c.diasFechado : [];
+    document.querySelectorAll(".dia-check input").forEach(cb => {
+      cb.checked = dias.includes(cb.value);
+    });
+  } catch (err) {
+    mostrarMsgConfig("⚠️ Erro ao carregar config: " + err.message, "err");
+  }
+}
+
+async function salvarConfig() {
+  const btn = document.getElementById("btn-salvar-config");
+  btn.disabled = true; btn.textContent = "⏳ Salvando...";
+  mostrarMsgConfig("", "");
+
+  const diasMarcados = Array.from(document.querySelectorAll(".dia-check input:checked"))
+    .map(cb => cb.value).join(",");
+
+  const params = {
+    action:              "saveconfig",
+    whatsapp:            document.getElementById("cfg-whatsapp").value.trim(),
+    nomeEstabelecimento: document.getElementById("cfg-nome").value.trim(),
+    taxaEntrega:         document.getElementById("cfg-taxa").value,
+    horarioAbertura:     document.getElementById("cfg-abertura").value,
+    horarioFechamento:   document.getElementById("cfg-fechamento").value,
+    diasFechado:         diasMarcados,
+  };
+
+  try {
+    const data = await apiGet(params);
+    if (!data.ok) throw new Error(data.erro);
+    mostrarMsgConfig("✅ Configurações salvas!", "ok");
+  } catch (err) {
+    mostrarMsgConfig("⚠️ Erro: " + err.message, "err");
+  }
+
+  btn.disabled = false; btn.textContent = "💾 Salvar configurações";
+}
+
+function mostrarMsgConfig(txt, tipo) {
+  const el = document.getElementById("config-msg");
+  el.textContent = txt;
+  el.className   = "config-msg " + tipo;
 }
 
 // ============================================================
@@ -283,18 +509,26 @@ function esc(s) {
 }
 
 function formatarHora(iso) {
-  const d = new Date(iso);
+  const d    = new Date(iso);
   const hoje = new Date().toDateString();
-  if (d.toDateString() === hoje) {
-    return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  }
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
-    " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === hoje) return hora;
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " + hora;
 }
 
 function atualizarTimestamp() {
   const t = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   document.getElementById("ultima-atualizacao").textContent = `Atualizado às ${t}`;
+}
+
+// ============================================================
+//  STATUS DA LOJA NO HEADER
+// ============================================================
+function renderStatusLoja() {
+  const el     = document.getElementById("status-loja");
+  const aberto = verificarHorario();
+  el.textContent = aberto ? "🟢 Aberta" : "🔴 Fechada";
+  el.className   = "badge-status " + (aberto ? "aberto" : "fechado");
 }
 
 // ============================================================
@@ -315,16 +549,7 @@ document.getElementById("btn-confirmar-cancelar").addEventListener("click", conf
 document.getElementById("modal-cancelar").addEventListener("click", e => {
   if (e.target === e.currentTarget) fecharModal();
 });
-
-// ============================================================
-//  STATUS DA LOJA NO HEADER
-// ============================================================
-function renderStatusLoja() {
-  const el     = document.getElementById("status-loja");
-  const aberto = verificarHorario();
-  el.textContent = aberto ? "🟢 Aberta" : "🔴 Fechada";
-  el.className   = "badge-status " + (aberto ? "aberto" : "fechado");
-}
+document.getElementById("btn-salvar-config").addEventListener("click", salvarConfig);
 
 // ============================================================
 //  INICIALIZAÇÃO

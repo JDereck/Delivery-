@@ -547,6 +547,25 @@ overlay.addEventListener("click", fecharPainel);
 //  FASE 3 — CARDÁPIO DA PLANILHA
 // ============================================================
 
+async function carregarConfigPlanilha() {
+  try {
+    const res  = await fetch(`${CONFIG.sheetsUrl}?action=config`);
+    const data = await res.json();
+    if (data.ok && data.config) {
+      const c = data.config;
+      // Aplica todas as chaves exceto sheetsUrl (que precisa estar no código)
+      if (c.whatsapp)            CONFIG.whatsapp            = c.whatsapp;
+      if (c.taxaEntrega !== undefined) CONFIG.taxaEntrega   = Number(c.taxaEntrega);
+      if (c.horarioAbertura)     CONFIG.horarioAbertura     = c.horarioAbertura;
+      if (c.horarioFechamento)   CONFIG.horarioFechamento   = c.horarioFechamento;
+      if (c.diasFechado)         CONFIG.diasFechado         = Array.isArray(c.diasFechado) ? c.diasFechado : [c.diasFechado];
+      if (c.nomeEstabelecimento) CONFIG.nomeEstabelecimento = c.nomeEstabelecimento;
+    }
+  } catch (err) {
+    console.warn("Config da planilha indisponível, usando valores locais:", err);
+  }
+}
+
 async function carregarCardapio() {
   const cardapioEl = document.getElementById("cardapio");
   cardapioEl.innerHTML = '<p style="color:var(--subtext);padding:2rem 20px;text-align:center">⏳ Carregando cardápio...</p>';
@@ -569,10 +588,13 @@ async function carregarCardapio() {
 // ============================================================
 
 async function init() {
+  if (CONFIG.sheetsUrl) {
+    await carregarConfigPlanilha(); // config primeiro — pode mudar nomeEstabelecimento
+    await carregarCardapio();
+  }
+
   document.getElementById("nome-estabelecimento").textContent = CONFIG.nomeEstabelecimento;
   document.title = CONFIG.nomeEstabelecimento + " — Cardápio";
-
-  if (CONFIG.sheetsUrl) await carregarCardapio();
 
   renderCardapio();
   renderCarrinho();

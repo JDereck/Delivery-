@@ -19,40 +19,131 @@
     </div>
   </header>
 
-  <!-- Resumo do dia -->
-  <div class="resumo-dia">
-    <div class="resumo-card">
-      <span class="resumo-label">Pedidos hoje</span>
-      <span class="resumo-valor" id="total-pedidos">—</span>
-    </div>
-    <div class="resumo-card">
-      <span class="resumo-label">Faturamento</span>
-      <span class="resumo-valor accent" id="total-faturamento">—</span>
-    </div>
-    <div class="resumo-card">
-      <span class="resumo-label">Em aberto</span>
-      <span class="resumo-valor warn" id="total-aberto">—</span>
-    </div>
-    <div class="resumo-card">
-      <span class="resumo-label">Cancelados</span>
-      <span class="resumo-valor danger" id="total-cancelados">—</span>
-    </div>
-  </div>
-
-  <!-- Filtros -->
-  <nav class="filtros">
-    <button class="filtro active" data-status="todos">Todos</button>
-    <button class="filtro novo"       data-status="Novo">Novos</button>
-    <button class="filtro preparo"    data-status="Em Preparo">Em Preparo</button>
-    <button class="filtro saiu"       data-status="Saiu pra Entrega">Saiu</button>
-    <button class="filtro entregue"   data-status="Entregue">Entregue</button>
-    <button class="filtro cancelado"  data-status="Cancelado">Cancelado</button>
+  <!-- Navegação de abas -->
+  <nav class="tabs">
+    <button class="tab-btn active" data-aba="pedidos">📋 Pedidos</button>
+    <button class="tab-btn"        data-aba="cardapio">🛒 Cardápio</button>
+    <button class="tab-btn"        data-aba="config">⚙️ Configurações</button>
   </nav>
 
-  <!-- Grid de pedidos -->
-  <main id="pedidos-grid" class="pedidos-grid">
-    <p class="loading">⏳ Carregando pedidos...</p>
-  </main>
+  <!-- ══════════════════════════════════════════
+       ABA: PEDIDOS
+  ══════════════════════════════════════════ -->
+  <section id="sec-pedidos">
+
+    <!-- Resumo do dia -->
+    <div class="resumo-dia">
+      <div class="resumo-card">
+        <span class="resumo-label">Pedidos hoje</span>
+        <span class="resumo-valor" id="total-pedidos">—</span>
+      </div>
+      <div class="resumo-card">
+        <span class="resumo-label">Faturamento</span>
+        <span class="resumo-valor accent" id="total-faturamento">—</span>
+      </div>
+      <div class="resumo-card">
+        <span class="resumo-label">Em aberto</span>
+        <span class="resumo-valor warn" id="total-aberto">—</span>
+      </div>
+      <div class="resumo-card">
+        <span class="resumo-label">Cancelados</span>
+        <span class="resumo-valor danger" id="total-cancelados">—</span>
+      </div>
+    </div>
+
+    <!-- Filtros de status -->
+    <nav class="filtros">
+      <button class="filtro active" data-status="todos">Todos</button>
+      <button class="filtro novo"       data-status="Novo">Novos</button>
+      <button class="filtro preparo"    data-status="Em Preparo">Em Preparo</button>
+      <button class="filtro saiu"       data-status="Saiu pra Entrega">Saiu</button>
+      <button class="filtro entregue"   data-status="Entregue">Entregue</button>
+      <button class="filtro cancelado"  data-status="Cancelado">Cancelado</button>
+    </nav>
+
+    <!-- Grid de pedidos -->
+    <main id="pedidos-grid" class="pedidos-grid">
+      <p class="loading">⏳ Carregando pedidos...</p>
+    </main>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       ABA: CARDÁPIO EDITOR
+  ══════════════════════════════════════════ -->
+  <section id="sec-cardapio" class="hidden">
+    <div class="sec-header">
+      <h2>Cardápio</h2>
+      <span class="sec-sub">Clique no preço para editar. Toggle para ativar/desativar.</span>
+    </div>
+    <div id="editor-grid" class="editor-grid">
+      <p class="loading">⏳ Carregando...</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       ABA: CONFIGURAÇÕES
+  ══════════════════════════════════════════ -->
+  <section id="sec-config" class="hidden">
+    <div class="sec-header">
+      <h2>Configurações</h2>
+      <span class="sec-sub">Salvar atualiza a planilha. O site busca essas configs automaticamente.</span>
+    </div>
+
+    <form id="config-form" class="config-form" onsubmit="return false">
+
+      <fieldset>
+        <legend>Contato</legend>
+        <label>
+          WhatsApp (DDI+DDD+número, sem espaços)
+          <input type="text" id="cfg-whatsapp" placeholder="5511999999999" maxlength="20">
+        </label>
+        <label>
+          Nome do estabelecimento
+          <input type="text" id="cfg-nome" placeholder="Delivery do João" maxlength="60">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Entrega</legend>
+        <label>
+          Taxa de entrega (R$)
+          <input type="number" id="cfg-taxa" placeholder="5.00" min="0" step="0.50">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Horário de funcionamento</legend>
+        <label>
+          Abertura
+          <input type="time" id="cfg-abertura">
+        </label>
+        <label>
+          Fechamento
+          <input type="time" id="cfg-fechamento">
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Dias fechados</legend>
+        <div class="dias-grid">
+          <label class="dia-check"><input type="checkbox" value="domingo">  Dom</label>
+          <label class="dia-check"><input type="checkbox" value="segunda">  Seg</label>
+          <label class="dia-check"><input type="checkbox" value="terça">    Ter</label>
+          <label class="dia-check"><input type="checkbox" value="quarta">   Qua</label>
+          <label class="dia-check"><input type="checkbox" value="quinta">   Qui</label>
+          <label class="dia-check"><input type="checkbox" value="sexta">    Sex</label>
+          <label class="dia-check"><input type="checkbox" value="sábado">   Sáb</label>
+        </div>
+      </fieldset>
+
+      <div class="config-footer">
+        <button id="btn-salvar-config" class="config-save-btn">💾 Salvar configurações</button>
+        <span id="config-msg" class="config-msg"></span>
+      </div>
+
+    </form>
+  </section>
 
   <!-- Modal de cancelamento -->
   <div id="modal-cancelar" class="modal hidden">

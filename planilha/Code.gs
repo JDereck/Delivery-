@@ -25,16 +25,27 @@ const CAB_CARDAPIO = [
   "Tag", "Descrição", "Disponível",
 ];
 
+const CONFIG_KEYS = [
+  "whatsapp", "taxaEntrega", "horarioAbertura",
+  "horarioFechamento", "diasFechado", "nomeEstabelecimento",
+];
+
 // ============================================================
 //  ROTEADOR GET
 // ============================================================
 function doGet(e) {
   const p = (e && e.parameter) ? e.parameter : {};
 
-  if (p.action === "cardapio") return servirCardapio();
-  if (p.action === "pedidos")  return listarPedidos();
-  if (p.action === "status")   return atualizarStatus(p);
-  if (p.action === "cancelar") return cancelarPedido(p);
+  if (p.action === "cardapio")       return servirCardapio();
+  if (p.action === "cardapioeditor") return servirCardapioEditor();
+  if (p.action === "pedidos")        return listarPedidos();
+  if (p.action === "status")         return atualizarStatus(p);
+  if (p.action === "cancelar")       return cancelarPedido(p);
+  if (p.action === "config")         return getConfig();
+  if (p.action === "saveconfig")     return saveConfig(p);
+  if (p.action === "toggleprod")     return toggleProd(p);
+  if (p.action === "togglevar")      return toggleVar(p);
+  if (p.action === "updatepreco")    return updatePreco(p);
 
   return ContentService
     .createTextOutput("✅ Script ativo e funcionando!")
@@ -68,28 +79,40 @@ function doPost(e) {
       "",
     ]);
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResp({ ok: true });
 
   } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, erro: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResp({ ok: false, erro: err.toString() });
   }
 }
 
 // ============================================================
-//  CARDÁPIO — serve JSON para o site
+//  CARDÁPIO — serve JSON para o site (apenas disponíveis)
 // ============================================================
 function servirCardapio() {
-  const ss    = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Cardápio");
+  const sheet = getCardapioSheet();
+  if (!sheet) return jsonResp({ ok: false, erro: 'Aba "Cardápio" não encontrada.' });
 
-  if (!sheet) {
-    return jsonResp({ ok: false, erro: 'Aba "Cardápio" não encontrada. Execute criarAbas() primeiro.' });
-  }
+  const { produtos } = lerProdutos(sheet, false);
+  return jsonResp({ ok: true, produtos });
+}
 
+// ============================================================
+//  CARDÁPIO EDITOR — todos os produtos (inclusive NÃO disponíveis)
+// ============================================================
+function servirCardapioEditor() {
+  const sheet = getCardapioSheet();
+  if (!sheet) return jsonResp({ ok: false, erro: 'Aba "Cardápio" não encontrada.' });
+
+  const { produtos } = lerProdutos(sheet, true);
+  return jsonResp({ ok: true, produtos });
+}
+
+// ============================================================
+//  HELPER — lê produtos do Cardápio
+//  Se incluirIndisponiveis = true, inclui os NÃO disponíveis
+// ============================================================
+function lerProdutos(sheet, incluirIndisponiveis) {
   const rows     = sheet.getDataRange().getValues();
   const produtos = [];
 
@@ -101,20 +124,27 @@ function servirCardapio() {
            tag, desc, disponivel] = rows[i];
 
     if (!nome) continue;
-    if (norm(disponivel) === "NÃO") continue;
+    const dispProd = norm(disponivel) !== "NÃO";
+    if (!incluirIndisponiveis && !dispProd) continue;
 
-    const prod = { id: i, cat: String(cat), nome: String(nome) };
+    const prod = {
+      id:         i,
+      row:        i + 1,
+      cat:        String(cat),
+      nome:       String(nome),
+      disponivel: dispProd,
+    };
 
     if (v1n && v1p !== "") {
       const vs = [];
-      if (v1n && v1p !== "" && norm(v1d) !== "NÃO") vs.push({ l: String(v1n), p: Number(v1p) });
-      if (v2n && v2p !== "" && norm(v2d) !== "NÃO") vs.push({ l: String(v2n), p: Number(v2p) });
-      if (v3n && v3p !== "" && norm(v3d) !== "NÃO") vs.push({ l: String(v3n), p: Number(v3p) });
-      if (vs.length === 0) continue;
+      if (v1n && v1p !== "") vs.push({ l: String(v1n), p: Number(v1p), disp: norm(v1d) !== "NÃO", vcol: 6 });
+      if (v2n && v2p !== "") vs.push({ l: String(v2n), p: Number(v2p), disp: norm(v2d) !== "NÃO", vcol: 9 });
+      if (v3n && v3p !== "") vs.push({ l: String(v3n), p: Number(v3p), disp: norm(v3d) !== "NÃO", vcol: 12 });
       prod.vs = vs;
     } else {
       if (preco === "" || preco === null) continue;
-      prod.p = Number(preco);
+      prod.p    = Number(preco);
+      prod.pcol = 3; // coluna Preço no Cardápio
     }
 
     if (tag  && String(tag).trim())  prod.tag  = String(tag).trim().toLowerCase();
@@ -123,7 +153,90 @@ function servirCardapio() {
     produtos.push(prod);
   }
 
-  return jsonResp({ ok: true, produtos });
+  return { produtos };
+}
+
+// ============================================================
+//  TOGGLE PRODUTO — col 15 (Disponível)
+// ============================================================
+function toggleProd(p) {
+  const row   = parseInt(p.row);
+  const valor = p.valor;
+  if (!row || !["SIM", "NÃO"].includes(valor))
+    return jsonResp({ ok: false, erro: "Parâmetros inválidos" });
+  getCardapioSheet().getRange(row, 15).setValue(valor);
+  return jsonResp({ ok: true });
+}
+
+// ============================================================
+//  TOGGLE VARIANTE — col 6, 9 ou 12 (V1/V2/V3 Disp)
+// ============================================================
+function toggleVar(p) {
+  const row  = parseInt(p.row);
+  const vcol = parseInt(p.vcol);
+  const valor = p.valor;
+  if (!row || ![6, 9, 12].includes(vcol) || !["SIM", "NÃO"].includes(valor))
+    return jsonResp({ ok: false, erro: "Parâmetros inválidos" });
+  getCardapioSheet().getRange(row, vcol).setValue(valor);
+  return jsonResp({ ok: true });
+}
+
+// ============================================================
+//  UPDATE PREÇO — col 3, 5, 8 ou 11 (Preço/V1/V2/V3)
+// ============================================================
+function updatePreco(p) {
+  const row  = parseInt(p.row);
+  const col  = parseInt(p.col);
+  const val  = parseFloat(p.valor);
+  if (!row || ![3, 5, 8, 11].includes(col) || isNaN(val) || val < 0)
+    return jsonResp({ ok: false, erro: "Parâmetros inválidos" });
+  getCardapioSheet().getRange(row, col).setValue(val);
+  return jsonResp({ ok: true });
+}
+
+// ============================================================
+//  CONFIG — lê aba Config
+// ============================================================
+function getConfig() {
+  const sheet = getConfigSheet();
+  if (!sheet) return jsonResp({ ok: false, erro: 'Aba "Config" não encontrada.' });
+
+  const rows   = sheet.getDataRange().getValues();
+  const config = {};
+  for (let i = 1; i < rows.length; i++) {
+    const [chave, valor] = rows[i];
+    if (chave) config[String(chave)] = String(valor);
+  }
+
+  // Converte tipos
+  if (config.taxaEntrega)  config.taxaEntrega = Number(config.taxaEntrega);
+  if (config.diasFechado)  config.diasFechado = config.diasFechado.split(",").map(d => d.trim()).filter(Boolean);
+
+  return jsonResp({ ok: true, config });
+}
+
+// ============================================================
+//  SAVE CONFIG — salva parâmetros na aba Config
+// ============================================================
+function saveConfig(p) {
+  const sheet = getConfigSheet();
+  if (!sheet) return jsonResp({ ok: false, erro: 'Aba "Config" não encontrada.' });
+
+  const rows = sheet.getDataRange().getValues();
+
+  CONFIG_KEYS.forEach(key => {
+    if (p[key] === undefined) return;
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) === key) {
+        sheet.getRange(i + 1, 2).setValue(decodeURIComponent(p[key]));
+        return;
+      }
+    }
+    // Chave não existe → adicionar
+    sheet.appendRow([key, decodeURIComponent(p[key])]);
+  });
+
+  return jsonResp({ ok: true });
 }
 
 // ============================================================
@@ -136,8 +249,7 @@ function listarPedidos() {
 
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
-    if (!r[1]) continue; // sem nome = linha vazia
-
+    if (!r[1]) continue;
     pedidos.push({
       row:       i + 1,
       dataHora:  r[0] ? new Date(r[0]).toISOString() : null,
@@ -155,7 +267,7 @@ function listarPedidos() {
     });
   }
 
-  pedidos.reverse(); // mais recentes primeiro
+  pedidos.reverse();
   return jsonResp({ ok: true, pedidos });
 }
 
@@ -166,11 +278,8 @@ function atualizarStatus(p) {
   const row    = parseInt(p.row);
   const status = p.status;
   const VALIDOS = ["Novo", "Em Preparo", "Saiu pra Entrega", "Entregue", "Cancelado"];
-
-  if (!row || !VALIDOS.includes(status)) {
+  if (!row || !VALIDOS.includes(status))
     return jsonResp({ ok: false, erro: "Parâmetros inválidos" });
-  }
-
   getPedidosSheet().getRange(row, 11).setValue(status);
   return jsonResp({ ok: true });
 }
@@ -181,9 +290,7 @@ function atualizarStatus(p) {
 function cancelarPedido(p) {
   const row    = parseInt(p.row);
   const motivo = p.motivo || "Sem motivo informado";
-
   if (!row) return jsonResp({ ok: false, erro: "Row inválido" });
-
   const sheet = getPedidosSheet();
   sheet.getRange(row, 11).setValue("Cancelado");
   sheet.getRange(row, 12).setValue(decodeURIComponent(motivo));
@@ -191,13 +298,12 @@ function cancelarPedido(p) {
 }
 
 // ============================================================
-//  AUXILIARES
+//  SHEET HELPERS
 // ============================================================
 function getPedidosSheet() {
   const ss    = SpreadsheetApp.getActiveSpreadsheet();
   let   sheet = ss.getSheetByName("Pedidos") || ss.getActiveSheet();
 
-  // Garante que coluna Status existe
   if (sheet.getLastRow() > 0) {
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     if (!headers.includes("Status")) {
@@ -208,13 +314,18 @@ function getPedidosSheet() {
       if (last > 1) sheet.getRange(2, col, last - 1, 1).setValue("Novo");
     }
   }
-
   return sheet;
 }
 
-function norm(val) {
-  return String(val || "").toUpperCase().trim();
+function getCardapioSheet() {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Cardápio");
 }
+
+function getConfigSheet() {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Config");
+}
+
+function norm(val) { return String(val || "").toUpperCase().trim(); }
 
 function jsonResp(obj) {
   return ContentService
@@ -223,11 +334,12 @@ function jsonResp(obj) {
 }
 
 // ============================================================
-//  SETUP — execute manualmente no editor para criar as abas
+//  SETUP — execute criarAbas() manualmente no editor
 // ============================================================
 function criarAbas() {
   criarAbaPedidos();
   criarAbaCardapio();
+  criarAbaConfig();
 }
 
 function criarAbaPedidos() {
@@ -257,4 +369,23 @@ function criarAbaCardapio() {
   sheet.appendRow(["🍔 Sanduíches", "X-Burguer", "", "Pão Bola", 11, "SIM", "Pão Árabe", 12, "NÃO", "", "", "", "", "", "SIM"]);
   sheet.appendRow(["🍕 Pizzas", "Mussarela", 27, "", "", "", "", "", "", "", "", "", "tradicional", "", "SIM"]);
   SpreadsheetApp.getUi().alert('Aba "Cardápio" criada com exemplos!');
+}
+
+function criarAbaConfig() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss.getSheetByName("Config")) return;
+  const sheet = ss.insertSheet("Config");
+  sheet.appendRow(["Chave", "Valor"]);
+  sheet.getRange(1, 1, 1, 2)
+    .setFontWeight("bold").setBackground("#1f2937").setFontColor("#f97316");
+  sheet.setFrozenRows(1);
+  sheet.setColumnWidth(1, 200);
+  sheet.setColumnWidth(2, 300);
+  // Valores padrão
+  sheet.appendRow(["whatsapp",            "5500000000000"]);
+  sheet.appendRow(["taxaEntrega",         "5.00"]);
+  sheet.appendRow(["horarioAbertura",     "18:00"]);
+  sheet.appendRow(["horarioFechamento",   "23:00"]);
+  sheet.appendRow(["diasFechado",         "segunda"]);
+  sheet.appendRow(["nomeEstabelecimento", "Delivery"]);
 }
