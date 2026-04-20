@@ -46,12 +46,13 @@ function ativarAba(aba) {
 
   document.getElementById("sec-pedidos").classList.toggle("hidden", aba !== "pedidos");
   document.getElementById("sec-cardapio").classList.toggle("hidden", aba !== "cardapio");
+  document.getElementById("sec-clientes").classList.toggle("hidden", aba !== "clientes");
   document.getElementById("sec-config").classList.toggle("hidden", aba !== "config");
 
-  // Botão refresh: faz sentido só na aba pedidos
   document.getElementById("btn-refresh").style.display = aba === "pedidos" ? "" : "none";
 
   if (aba === "cardapio") carregarCardapioEditor();
+  if (aba === "clientes") carregarClientes();
   if (aba === "config")   carregarConfig();
 }
 
@@ -433,6 +434,115 @@ async function confirmarPreco(input, row, col) {
     carregarCardapioEditor(); // recarrega em caso de erro
   }
 }
+
+// ============================================================
+//  CLIENTES
+// ============================================================
+
+let todosOsClientes   = [];
+let filtroCliAtual    = "todos";
+
+async function carregarClientes() {
+  const grid = document.getElementById("clientes-grid");
+  grid.innerHTML = '<p class="loading">⏳ Carregando clientes...</p>';
+
+  if (!CONFIG.sheetsUrl) {
+    grid.innerHTML = '<p class="empty">⚙️ Configure <code>sheetsUrl</code> em painel.js</p>';
+    return;
+  }
+
+  try {
+    const data = await apiGet({ action: "listarclientes" });
+    if (!data.ok) throw new Error(data.erro);
+    todosOsClientes = data.clientes;
+    renderResumoClientes();
+    renderClientes();
+  } catch (err) {
+    grid.innerHTML = `<p class="empty">⚠️ Erro ao carregar: ${esc(err.message)}</p>`;
+  }
+}
+
+function renderResumoClientes() {
+  const total    = todosOsClientes.length;
+  const ativos   = todosOsClientes.filter(c => c.status === "Ativo").length;
+  const mornos   = todosOsClientes.filter(c => c.status === "Morno").length;
+  const inativos = todosOsClientes.filter(c => c.status === "Inativo").length;
+
+  document.getElementById("cli-total").textContent   = total;
+  document.getElementById("cli-ativos").textContent  = ativos;
+  document.getElementById("cli-mornos").textContent  = mornos;
+  document.getElementById("cli-inativos").textContent = inativos;
+}
+
+function renderClientes() {
+  const grid = document.getElementById("clientes-grid");
+  const lista = filtroCliAtual === "todos"
+    ? todosOsClientes
+    : todosOsClientes.filter(c => c.status === filtroCliAtual);
+
+  if (lista.length === 0) {
+    grid.innerHTML = '<p class="empty">Nenhum cliente encontrado.</p>';
+    return;
+  }
+  grid.innerHTML = lista.map(renderClienteCard).join("");
+}
+
+function renderClienteCard(c) {
+  const ultimoFmt = c.ultimoPedido
+    ? formatarHora(c.ultimoPedido) : "—";
+  const diasTxt = c.diasSemPedir < 999
+    ? `há ${c.diasSemPedir} dia${c.diasSemPedir === 1 ? "" : "s"}` : "—";
+
+  const enderecosHtml = c.enderecos.length
+    ? `<div class="cli-enderecos">
+        <span class="cli-end-label">Endereços</span>
+        ${c.enderecos.map(e => `<span class="cli-end-item">${esc(e)}</span>`).join("")}
+       </div>`
+    : "";
+
+  const msgPromo = encodeURIComponent(
+    `Olá, ${c.nome.split(" ")[0]}! 😊 Temos novidades e promoções especiais pra você. Que tal fazer um pedido hoje?`
+  );
+
+  return `
+    <div class="cliente-card">
+      <div class="cli-top">
+        <div>
+          <div class="cli-nome">${esc(c.nome)}</div>
+          <div class="cli-wpp">📱 ${esc(c.whatsapp)}</div>
+        </div>
+        <span class="status-pill status-pill-${esc(c.status)}">${esc(c.status)}</span>
+      </div>
+      <div class="cli-stats">
+        <div class="cli-stat">
+          <span class="cli-stat-label">Pedidos</span>
+          <span class="cli-stat-val">${c.qtdPedidos}</span>
+        </div>
+        <div class="cli-stat">
+          <span class="cli-stat-label">Total gasto</span>
+          <span class="cli-stat-val accent">${fmt(c.totalGasto)}</span>
+        </div>
+      </div>
+      ${enderecosHtml}
+      <div class="cli-ultimo">Último pedido: ${ultimoFmt} (${diasTxt})</div>
+      <div class="cli-acoes">
+        <a href="https://wa.me/${esc(c.whatsapp)}?text=${msgPromo}"
+           target="_blank" rel="noopener" class="btn-wpp-promo">
+          💬 Enviar promoção
+        </a>
+      </div>
+    </div>`;
+}
+
+// Filtros de clientes
+document.getElementById("filtros-clientes").addEventListener("click", e => {
+  const btn = e.target.closest("[data-cli-status]");
+  if (!btn) return;
+  document.querySelectorAll("[data-cli-status]").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  filtroCliAtual = btn.dataset.cliStatus;
+  renderClientes();
+});
 
 // ============================================================
 //  CONFIGURAÇÕES

@@ -410,3 +410,57 @@ header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
 .config-msg { font-size: 0.82rem; }
 .config-msg.ok  { color: var(--entregue); }
 .config-msg.err { color: var(--cancelado); }
+
+/* ── CLIENTES ── */
+.cliente-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color 0.15s;
+}
+.cliente-card:hover { border-color: #4b5563; }
+
+.cli-top {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.cli-nome { font-weight: 700; font-size: 0.95rem; }
+.cli-wpp  { font-size: 0.75rem; color: var(--muted); }
+
+.status-pill-Ativo    { background: rgba(34,197,94,.2);  color: #86efac; }
+.status-pill-Morno    { background: rgba(251,191,36,.2); color: #fde68a; }
+.status-pill-Inativo  { background: rgba(239,68,68,.2);  color: #fca5a5; }
+
+.cli-stats {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0.5rem; padding: 0.75rem 1rem;
+}
+.cli-stat { display: flex; flex-direction: column; gap: 0.1rem; }
+.cli-stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.cli-stat-val   { font-size: 0.95rem; font-weight: 700; }
+.cli-stat-val.accent { color: var(--accent); }
+
+.cli-enderecos {
+  padding: 0 1rem 0.75rem;
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.cli-end-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.1rem; }
+.cli-end-item  { font-size: 0.8rem; color: var(--text); padding-left: 0.5rem; border-left: 2px solid var(--border); line-height: 1.3; }
+
+.cli-acoes {
+  padding: 0 1rem 0.85rem;
+  display: flex; gap: 0.5rem;
+}
+.btn-wpp-promo {
+  flex: 1; background: #25d366; color: #fff;
+  border: none; border-radius: 8px; padding: 0.5rem;
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-wpp-promo:hover { background: #1ebe57; }
+.cli-ultimo {
+  font-size: 0.72rem; color: var(--muted);
+  padding: 0 1rem 0.6rem; text-align: right;
+}

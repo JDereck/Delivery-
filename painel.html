@@ -23,7 +23,8 @@
   <nav class="tabs">
     <button class="tab-btn active" data-aba="pedidos">📋 Pedidos</button>
     <button class="tab-btn"        data-aba="cardapio">🛒 Cardápio</button>
-    <button class="tab-btn"        data-aba="config">⚙️ Configurações</button>
+    <button class="tab-btn"        data-aba="clientes">👥 Clientes</button>
+    <button class="tab-btn"        data-aba="config">⚙️ Config</button>
   </nav>
 
   <!-- ══════════════════════════════════════════
@@ -78,6 +79,48 @@
     </div>
     <div id="editor-grid" class="editor-grid">
       <p class="loading">⏳ Carregando...</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       ABA: CLIENTES
+  ══════════════════════════════════════════ -->
+  <section id="sec-clientes" class="hidden">
+    <div class="sec-header">
+      <h2>Clientes</h2>
+      <span class="sec-sub">Histórico de quem já pediu. Filtre por atividade para enviar promoções.</span>
+    </div>
+
+    <!-- Resumo de clientes -->
+    <div class="resumo-dia" id="resumo-clientes">
+      <div class="resumo-card">
+        <span class="resumo-label">Total</span>
+        <span class="resumo-valor" id="cli-total">—</span>
+      </div>
+      <div class="resumo-card">
+        <span class="resumo-label">Ativos (≤14d)</span>
+        <span class="resumo-valor" style="color:#4ade80" id="cli-ativos">—</span>
+      </div>
+      <div class="resumo-card">
+        <span class="resumo-label">Mornos (15–30d)</span>
+        <span class="resumo-valor warn" id="cli-mornos">—</span>
+      </div>
+      <div class="resumo-card">
+        <span class="resumo-label">Inativos (+30d)</span>
+        <span class="resumo-valor danger" id="cli-inativos">—</span>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <nav class="filtros" id="filtros-clientes">
+      <button class="filtro active" data-cli-status="todos">Todos</button>
+      <button class="filtro"        data-cli-status="Ativo"   style="--fc:#4ade80">Ativos</button>
+      <button class="filtro"        data-cli-status="Morno"   style="--fc:#fbbf24">Mornos</button>
+      <button class="filtro"        data-cli-status="Inativo" style="--fc:#f87171">Inativos</button>
+    </nav>
+
+    <div id="clientes-grid" class="pedidos-grid">
+      <p class="loading">⏳ Carregando clientes...</p>
     </div>
   </section>
 

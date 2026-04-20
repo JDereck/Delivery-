@@ -426,6 +426,72 @@ async function registrarNaPlanilha(extras) {
   });
 }
 
+function salvarCliente(whatsapp, nome, endereco, total) {
+  if (!CONFIG.sheetsUrl || !whatsapp) return;
+  const params = new URLSearchParams({ action: "salvarcliente", whatsapp, nome, endereco, total });
+  fetch(`${CONFIG.sheetsUrl}?${params}`).catch(() => {});
+}
+
+// ============================================================
+//  LOOKUP DE CLIENTE POR WHATSAPP
+// ============================================================
+
+let _wppTimer = null;
+
+document.getElementById("campo-whatsapp").addEventListener("input", function () {
+  clearTimeout(_wppTimer);
+  const wpp = this.value.replace(/\D/g, "");
+  ocultarSugestoes();
+  document.getElementById("cliente-badge").classList.add("hidden");
+  if (wpp.length < 10 || !CONFIG.sheetsUrl) return;
+  _wppTimer = setTimeout(() => buscarClientePorWpp(wpp), 600);
+});
+
+async function buscarClientePorWpp(wpp) {
+  try {
+    const res  = await fetch(`${CONFIG.sheetsUrl}?action=cliente&whatsapp=${wpp}`);
+    const data = await res.json();
+    if (!data.ok || !data.cliente) return;
+
+    const { nome, enderecos } = data.cliente;
+
+    // Preenche nome se ainda estiver vazio
+    const nomeEl = document.getElementById("campo-nome");
+    if (!nomeEl.value.trim()) nomeEl.value = nome;
+
+    // Mostra badge de cliente reconhecido
+    const badge = document.getElementById("cliente-badge");
+    badge.textContent = `👋 Olá, ${nome.split(" ")[0]}!`;
+    badge.classList.remove("hidden");
+
+    // Mostra sugestões de endereço
+    if (enderecos.length > 0) mostrarSugestoes(enderecos);
+  } catch (_) {}
+}
+
+function mostrarSugestoes(enderecos) {
+  const el = document.getElementById("enderecos-sugestoes");
+  el.innerHTML = `<span class="sug-label">Endereços salvos:</span>` +
+    enderecos.map(e =>
+      `<button type="button" class="endereco-chip"
+        onclick="selecionarEndereco(this)">${escHtml(e)}</button>`
+    ).join("");
+  el.classList.remove("hidden");
+}
+
+function ocultarSugestoes() {
+  const el = document.getElementById("enderecos-sugestoes");
+  el.classList.add("hidden");
+  el.innerHTML = "";
+}
+
+function selecionarEndereco(btn) {
+  document.getElementById("campo-endereco").value = btn.textContent.trim();
+  // Marca o chip selecionado
+  document.querySelectorAll(".endereco-chip").forEach(c => c.classList.remove("selecionado"));
+  btn.classList.add("selecionado");
+}
+
 // ============================================================
 //  FORMULÁRIO & WHATSAPP
 // ============================================================
@@ -445,12 +511,14 @@ document.getElementById("form-pedido").addEventListener("submit", async function
   const erroEl = document.getElementById("msg-erro");
   erroEl.classList.add("hidden");
 
+  const whatsapp  = document.getElementById("campo-whatsapp").value.replace(/\D/g, "");
   const nome      = document.getElementById("campo-nome").value.trim();
   const endereco  = document.getElementById("campo-endereco").value.trim();
   const pagamento = document.getElementById("campo-pagamento").value;
   const troco     = document.getElementById("campo-troco").value.trim();
   const obs       = document.getElementById("campo-obs").value.trim();
 
+  if (!whatsapp)  { mostrarErro(erroEl, "Informe seu WhatsApp."); return; }
   if (!nome)      { mostrarErro(erroEl, "Informe seu nome."); return; }
   if (!endereco)  { mostrarErro(erroEl, "Informe o endereço de entrega."); return; }
   if (!pagamento) { mostrarErro(erroEl, "Selecione a forma de pagamento."); return; }
@@ -466,12 +534,14 @@ document.getElementById("form-pedido").addEventListener("submit", async function
   }
 
   const btnFin = document.getElementById("btn-finalizar");
+  const total  = calcularSubtotal() + CONFIG.taxaEntrega;
 
   if (CONFIG.sheetsUrl) {
     btnFin.disabled = true;
     btnFin.textContent = "⏳ Registrando pedido...";
     try {
       await registrarNaPlanilha({ nome, endereco, pagamento, troco, obs });
+      salvarCliente(whatsapp, nome, endereco, total); // fire-and-forget
     } catch (err) {
       console.warn("Planilha indisponível:", err);
     }

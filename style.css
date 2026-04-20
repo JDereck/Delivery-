@@ -452,6 +452,43 @@ header h1 {
 }
 .form-pedido.hidden { display: none; }
 
+/* ── CAMPO WHATSAPP ── */
+.campo-wpp-wrap { position: relative; display: flex; flex-direction: column; gap: 0.3rem; }
+
+.cliente-badge {
+  font-size: 0.78rem; font-weight: 600;
+  color: #4ade80; background: rgba(34,197,94,.12);
+  border: 1px solid rgba(34,197,94,.3);
+  border-radius: 6px; padding: 0.25rem 0.6rem;
+  align-self: flex-start;
+}
+.cliente-badge.hidden { display: none; }
+
+/* ── SUGESTÕES DE ENDEREÇO ── */
+.enderecos-sugestoes {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  padding: 0.5rem 0;
+}
+.enderecos-sugestoes.hidden { display: none; }
+
+.sug-label {
+  font-size: 0.72rem; color: var(--subtext);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+.endereco-chip {
+  text-align: left; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 0.82rem;
+  padding: 0.45rem 0.7rem; cursor: pointer;
+  transition: all 0.15s; line-height: 1.3;
+}
+.endereco-chip:hover     { border-color: var(--accent); color: var(--accent); }
+.endereco-chip.selecionado {
+  border-color: var(--accent);
+  background: rgba(249,115,22,.1); color: var(--accent);
+}
+
 .form-pedido input,
 .form-pedido select,
 .form-pedido textarea {

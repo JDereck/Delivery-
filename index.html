@@ -41,8 +41,14 @@
       </div>
 
       <form id="form-pedido" class="form-pedido hidden" novalidate>
+        <div class="campo-wpp-wrap">
+          <input type="tel" id="campo-whatsapp" placeholder="Seu WhatsApp (DDD + número) *"
+                 autocomplete="tel" inputmode="numeric" maxlength="15">
+          <span id="cliente-badge" class="cliente-badge hidden"></span>
+        </div>
         <input  type="text"   id="campo-nome"      placeholder="Seu nome completo *" autocomplete="name">
         <input  type="text"   id="campo-endereco"  placeholder="Endereço (Rua, nº, bairro) *" autocomplete="street-address">
+        <div id="enderecos-sugestoes" class="enderecos-sugestoes hidden"></div>
         <select id="campo-pagamento">
           <option value="">Forma de pagamento *</option>
           <option value="Pix">Pix</option>
