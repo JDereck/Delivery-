@@ -642,6 +642,105 @@ function renderStatusLoja() {
 }
 
 // ============================================================
+//  CLIENTES
+// ============================================================
+let todosOsClientes  = [];
+let filtroCliAtual   = "todos";
+
+async function carregarClientes() {
+  const grid = document.getElementById("clientes-grid");
+  grid.innerHTML = '<p class="loading">⏳ Carregando clientes...</p>';
+
+  if (!CONFIG.sheetsUrl) {
+    grid.innerHTML = '<p class="empty">⚙️ Configure <code>sheetsUrl</code> em painel.js</p>';
+    return;
+  }
+
+  try {
+    const data = await apiGet({ action: "listarclientes" });
+    if (!data.ok) throw new Error(data.erro);
+    todosOsClientes = data.clientes;
+    renderResumoClientes();
+    renderClientes();
+  } catch (err) {
+    grid.innerHTML = `<p class="empty">⚠️ ${esc(err.message)}</p>`;
+  }
+}
+
+function renderResumoClientes() {
+  document.getElementById("cli-total").textContent   = todosOsClientes.length;
+  document.getElementById("cli-ativos").textContent  = todosOsClientes.filter(c => c.status === "Ativo").length;
+  document.getElementById("cli-mornos").textContent  = todosOsClientes.filter(c => c.status === "Morno").length;
+  document.getElementById("cli-inativos").textContent= todosOsClientes.filter(c => c.status === "Inativo").length;
+}
+
+function renderClientes() {
+  const grid  = document.getElementById("clientes-grid");
+  const lista = filtroCliAtual === "todos"
+    ? todosOsClientes
+    : todosOsClientes.filter(c => c.status === filtroCliAtual);
+
+  if (lista.length === 0) {
+    grid.innerHTML = '<p class="empty">Nenhum cliente encontrado.</p>';
+    return;
+  }
+  grid.innerHTML = lista.map(renderClienteCard).join("");
+}
+
+function renderClienteCard(c) {
+  const statusCls  = `cli-status-${c.status}`;
+  const ultimoTxt  = c.ultimoPedido
+    ? `Último pedido: ${formatarHora(c.ultimoPedido)}` + (c.diasSemPedir > 0 ? ` (${c.diasSemPedir}d atrás)` : "")
+    : "Sem pedidos";
+
+  const enderecos  = (c.enderecos || []).slice(0, 3)
+    .map(e => `<div class="cli-endereco-item">${esc(e)}</div>`).join("");
+
+  const msgPromo   = encodeURIComponent(
+    `Olá ${c.nome.split(" ")[0]}! 👋 Temos novidades e promoções especiais para você. Acesse nosso cardápio e peça agora!`
+  );
+  const wppLink    = `https://wa.me/${c.whatsapp}?text=${msgPromo}`;
+
+  return `
+    <div class="cliente-card">
+      <div class="cli-top">
+        <div>
+          <div class="cli-nome">${esc(c.nome)}</div>
+          <div class="cli-wpp">📱 ${esc(c.whatsapp)}</div>
+        </div>
+        <span class="status-pill ${statusCls}">${c.status}</span>
+      </div>
+      <div class="cli-stats">
+        <div class="cli-stat">
+          <span class="cli-stat-label">Pedidos</span>
+          <span class="cli-stat-val">${c.qtdPedidos}</span>
+        </div>
+        <div class="cli-stat">
+          <span class="cli-stat-label">Total gasto</span>
+          <span class="cli-stat-val" style="color:var(--accent)">${fmt(c.totalGasto)}</span>
+        </div>
+      </div>
+      ${enderecos ? `<div class="cli-enderecos">${enderecos}</div>` : ""}
+      <div class="cli-ultimo">${ultimoTxt}</div>
+      <div class="cli-acoes">
+        <a href="${wppLink}" target="_blank" class="btn-wpp-promo">
+          💬 Enviar promoção
+        </a>
+      </div>
+    </div>`;
+}
+
+// Filtros de clientes
+document.querySelectorAll("[data-cli-status]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-cli-status]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    filtroCliAtual = btn.dataset.cliStatus;
+    renderClientes();
+  });
+});
+
+// ============================================================
 //  EVENTOS
 // ============================================================
 document.querySelectorAll(".filtro").forEach(btn => {
