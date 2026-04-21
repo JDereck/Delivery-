@@ -38,6 +38,45 @@ function verificarHorario() {
 }
 
 // ============================================================
+//  FUNÇÕES QUE FALTAVAM (CORREÇÃO IMPORTANTE)
+// ============================================================
+
+function formatarHora(data) {
+  const d = new Date(data);
+  return d.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function esc(str) {
+  return (str || "")
+    .toString()
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function renderAcoes(p) {
+  return `
+    <div class="card-acoes">
+      <button onclick="alert('Pedido ${p.row}')">Ver</button>
+    </div>
+  `;
+}
+
+async function apiCancelar(row, motivo) {
+  const url = CONFIG.sheetsUrl +
+    "?action=cancelar&row=" + row +
+    "&motivo=" + encodeURIComponent(motivo);
+
+  const res = await fetch(url);
+  return await res.json();
+}
+
+// ============================================================
 //  TROCA DE ABAS
 // ============================================================
 function ativarAba(aba) {
@@ -62,7 +101,7 @@ document.querySelectorAll(".tab-btn").forEach(btn =>
   btn.addEventListener("click", () => ativarAba(btn.dataset.aba)));
 
 // ============================================================
-//  API (CORRIGIDO)
+//  API GET
 // ============================================================
 async function apiGet(params) {
   const base = CONFIG.sheetsUrl;
@@ -81,7 +120,7 @@ async function apiGet(params) {
 }
 
 // ============================================================
-//  SOM DE NOTIFICAÇÃO
+//  SOM
 // ============================================================
 function tocarNotificacao() {
   try {
@@ -118,19 +157,22 @@ function renderResumo(pedidos) {
 
   const faturamento = doDia
     .filter(p => p.status !== "Cancelado")
-    .reduce((s, p) => s + p.total, 0);
+    .reduce((s, p) => s + (p.total || 0), 0);
 
   document.getElementById("total-pedidos").textContent = doDia.length;
   document.getElementById("total-faturamento").textContent = fmt(faturamento);
+
   document.getElementById("total-aberto").textContent =
-    doDia.filter(p => ["Novo", "Em Preparo", "Saiu pra Entrega"].includes(p.status)).length;
+    doDia.filter(p =>
+      ["Novo", "Em Preparo", "Saiu pra Entrega"].includes(p.status)
+    ).length;
 
   document.getElementById("total-cancelados").textContent =
     doDia.filter(p => p.status === "Cancelado").length;
 }
 
 // ============================================================
-//  CARD PEDIDO (CORRIGIDO)
+//  CARD PEDIDO (CORRIGIDO STATUS)
 // ============================================================
 function renderCard(p) {
 
@@ -138,8 +180,9 @@ function renderCard(p) {
   const hora = p.dataHora ? formatarHora(p.dataHora) : "—";
   const tipo = p.tipo || "entrega";
 
-  // ✔️ CORREÇÃO STATUS CLASS
-  const statusClass = p.status.replace(/ /g, "-");
+  const statusClass = (p.status || "novo")
+    .toLowerCase()
+    .replace(/ /g, "-");
 
   const itensHtml = (p.itens || "")
     .split(" | ")
@@ -182,12 +225,12 @@ function renderCard(p) {
 }
 
 // ============================================================
-//  CANCELAMENTO (CORRIGIDO BUG)
+//  CANCELAMENTO
 // ============================================================
 async function confirmarCancelamento() {
-  if (!pendenteCancelar) return;
+  if (!pendenteCancelar || !pendenteCancelar.row) return;
 
-  const row = pendenteCancelar.row; // ✔️ FIX IMPORTANTE
+  const row = pendenteCancelar.row;
   const motivo =
     document.getElementById("motivo-cancelamento").value.trim() ||
     "Sem motivo informado";
@@ -215,7 +258,7 @@ async function confirmarCancelamento() {
 }
 
 // ============================================================
-//  CLIENTES (CORRIGIDO CSS)
+//  CLIENTES
 // ============================================================
 function renderClienteCard(c) {
 
