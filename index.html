@@ -7,10 +7,11 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-  <header>
-    <div class="header-left">
-      <h1 id="nome-estabelecimento">Delivery</h1>
+<div class="container">
+ <header class="header">
+  <div class="header-left">
+      <h1 id="nome-estabelecimento">🔥 Sandra Lanche</h1>
+<p class="subtitulo">Os melhores lanches da região 😋</p>
       <span id="status-horario" class="badge-status"></span>
     </div>
     <button id="btn-carrinho-mobile" class="btn-cart-mobile" aria-label="Abrir carrinho">
@@ -18,7 +19,7 @@
     </button>
   </header>
 
-  <nav id="nav-categorias" class="nav-cat" aria-label="Categorias do cardápio"></nav>
+  <nav id="nav-categorias"></nav>
 
   <div class="layout">
 
@@ -66,7 +67,7 @@
         <input  type="text"   id="campo-troco"     placeholder="Troco para quanto? (ex: R$ 50)" class="hidden">
         <textarea             id="campo-obs"        placeholder="Observações / Adicionais (opcional)" rows="3"></textarea>
         <p id="msg-erro" class="msg-erro hidden"></p>
-        <button type="submit" id="btn-finalizar">✅ Finalizar no WhatsApp</button>
+        <button type="submit" id="btn-finalizar">🚀 Enviar pedido agora</button>
       </form>
 
       <div id="aviso-fechado" class="aviso-fechado hidden">
@@ -77,7 +78,7 @@
   </div>
 
   <div id="overlay" class="overlay hidden"></div>
-
+</div> <!-- fim container -->
   <script src="app.js"></script>
 </body>
 </html>
