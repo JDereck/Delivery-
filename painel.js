@@ -63,9 +63,17 @@ document.querySelectorAll(".tab-btn").forEach(btn =>
 //  API
 // ============================================================
 async function apiGet(params) {
-  const url = CONFIG.sheetsUrl + "?" + new URLSearchParams(params).toString();
+  const url = CONFIG.sheetsUrl + "&" + new URLSearchParams(params).toString();
+
   const res  = await fetch(url);
-  return res.json();
+  const text = await res.text();
+
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    console.error("Resposta inválida:", text);
+    throw new Error("Resposta não é JSON válida");
+  }
 }
 
 async function fetchPedidos()            { return apiGet({ action: "pedidos" }); }
