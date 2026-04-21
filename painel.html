@@ -15,24 +15,21 @@
     </div>
     <div class="header-right">
       <span id="ultima-atualizacao" class="update-time"></span>
-      <button id="btn-refresh" class="btn-icon" title="Atualizar agora">↻</button>
+      <button type="button" id="btn-refresh" class="btn-icon" title="Atualizar agora">↻</button>
     </div>
   </header>
 
   <!-- Navegação de abas -->
   <nav class="tabs">
-    <button class="tab-btn active" data-aba="pedidos">📋 Pedidos</button>
-    <button class="tab-btn"        data-aba="cardapio">🛒 Cardápio</button>
-    <button class="tab-btn"        data-aba="clientes">👥 Clientes</button>
-    <button class="tab-btn"        data-aba="config">⚙️ Config</button>
+    <button type="button" class="tab-btn active" data-aba="pedidos">📋 Pedidos</button>
+    <button type="button" class="tab-btn" data-aba="cardapio">🛒 Cardápio</button>
+    <button type="button" class="tab-btn" data-aba="clientes">👥 Clientes</button>
+    <button type="button" class="tab-btn" data-aba="config">⚙️ Config</button>
   </nav>
 
-  <!-- ══════════════════════════════════════════
-       ABA: PEDIDOS
-  ══════════════════════════════════════════ -->
+  <!-- ABA: PEDIDOS -->
   <section id="sec-pedidos">
 
-    <!-- Resumo do dia -->
     <div class="resumo-dia">
       <div class="resumo-card">
         <span class="resumo-label">Pedidos hoje</span>
@@ -52,26 +49,22 @@
       </div>
     </div>
 
-    <!-- Filtros de status -->
     <nav class="filtros">
-      <button class="filtro active" data-status="todos">Todos</button>
-      <button class="filtro novo"       data-status="Novo">Novos</button>
-      <button class="filtro preparo"    data-status="Em Preparo">Em Preparo</button>
-      <button class="filtro saiu"       data-status="Saiu pra Entrega">Saiu</button>
-      <button class="filtro entregue"   data-status="Entregue">Entregue</button>
-      <button class="filtro cancelado"  data-status="Cancelado">Cancelado</button>
+      <button type="button" class="filtro active" data-status="todos">Todos</button>
+      <button type="button" class="filtro novo" data-status="Novo">Novos</button>
+      <button type="button" class="filtro preparo" data-status="Em Preparo">Em Preparo</button>
+      <button type="button" class="filtro saiu" data-status="Saiu pra Entrega">Saiu</button>
+      <button type="button" class="filtro entregue" data-status="Entregue">Entregue</button>
+      <button type="button" class="filtro cancelado" data-status="Cancelado">Cancelado</button>
     </nav>
 
-    <!-- Grid de pedidos -->
     <main id="pedidos-grid" class="pedidos-grid">
       <p class="loading">⏳ Carregando pedidos...</p>
     </main>
 
   </section>
 
-  <!-- ══════════════════════════════════════════
-       ABA: CARDÁPIO EDITOR
-  ══════════════════════════════════════════ -->
+  <!-- ABA CARDÁPIO -->
   <section id="sec-cardapio" class="hidden">
     <div class="sec-header">
       <h2>Cardápio</h2>
@@ -82,16 +75,13 @@
     </div>
   </section>
 
-  <!-- ══════════════════════════════════════════
-       ABA: CLIENTES
-  ══════════════════════════════════════════ -->
+  <!-- ABA CLIENTES -->
   <section id="sec-clientes" class="hidden">
     <div class="sec-header">
       <h2>Clientes</h2>
       <span class="sec-sub">Histórico de quem já pediu. Filtre por atividade para enviar promoções.</span>
     </div>
 
-    <!-- Resumo de clientes -->
     <div class="resumo-dia" id="resumo-clientes">
       <div class="resumo-card">
         <span class="resumo-label">Total</span>
@@ -111,12 +101,11 @@
       </div>
     </div>
 
-    <!-- Filtros -->
     <nav class="filtros" id="filtros-clientes">
-      <button class="filtro active" data-cli-status="todos">Todos</button>
-      <button class="filtro"        data-cli-status="Ativo"   style="--fc:#4ade80">Ativos</button>
-      <button class="filtro"        data-cli-status="Morno"   style="--fc:#fbbf24">Mornos</button>
-      <button class="filtro"        data-cli-status="Inativo" style="--fc:#f87171">Inativos</button>
+      <button type="button" class="filtro active" data-cli-status="todos">Todos</button>
+      <button type="button" class="filtro" data-cli-status="Ativo">Ativos</button>
+      <button type="button" class="filtro" data-cli-status="Morno">Mornos</button>
+      <button type="button" class="filtro" data-cli-status="Inativo">Inativos</button>
     </nav>
 
     <div id="clientes-grid" class="pedidos-grid">
@@ -124,39 +113,38 @@
     </div>
   </section>
 
-  <!-- ══════════════════════════════════════════
-       ABA: CONFIGURAÇÕES
-  ══════════════════════════════════════════ -->
+  <!-- CONFIG -->
   <section id="sec-config" class="hidden">
+
     <div class="sec-header">
       <h2>Configurações</h2>
       <span class="sec-sub">Salvar atualiza a planilha. O site busca essas configs automaticamente.</span>
     </div>
 
-    <form id="config-form" class="config-form" onsubmit="return false">
+    <form id="config-form" class="config-form">
 
       <fieldset>
         <legend>Contato</legend>
         <label>
-          WhatsApp (DDI+DDD+número, sem espaços)
-          <input type="text" id="cfg-whatsapp" placeholder="5511999999999" maxlength="20">
+          WhatsApp
+          <input type="text" id="cfg-whatsapp">
         </label>
         <label>
           Nome do estabelecimento
-          <input type="text" id="cfg-nome" placeholder="Delivery do João" maxlength="60">
+          <input type="text" id="cfg-nome">
         </label>
       </fieldset>
 
       <fieldset>
         <legend>Entrega</legend>
         <label>
-          Taxa de entrega (R$)
-          <input type="number" id="cfg-taxa" placeholder="5.00" min="0" step="0.50">
+          Taxa de entrega
+          <input type="number" id="cfg-taxa">
         </label>
       </fieldset>
 
       <fieldset>
-        <legend>Horário de funcionamento</legend>
+        <legend>Horário</legend>
         <label>
           Abertura
           <input type="time" id="cfg-abertura">
@@ -167,36 +155,23 @@
         </label>
       </fieldset>
 
-      <fieldset>
-        <legend>Dias fechados</legend>
-        <div class="dias-grid">
-          <label class="dia-check"><input type="checkbox" value="domingo">  Dom</label>
-          <label class="dia-check"><input type="checkbox" value="segunda">  Seg</label>
-          <label class="dia-check"><input type="checkbox" value="terça">    Ter</label>
-          <label class="dia-check"><input type="checkbox" value="quarta">   Qua</label>
-          <label class="dia-check"><input type="checkbox" value="quinta">   Qui</label>
-          <label class="dia-check"><input type="checkbox" value="sexta">    Sex</label>
-          <label class="dia-check"><input type="checkbox" value="sábado">   Sáb</label>
-        </div>
-      </fieldset>
-
       <div class="config-footer">
-        <button id="btn-salvar-config" class="config-save-btn">💾 Salvar configurações</button>
+        <button type="button" id="btn-salvar-config" class="config-save-btn">💾 Salvar configurações</button>
         <span id="config-msg" class="config-msg"></span>
       </div>
 
     </form>
   </section>
 
-  <!-- Modal de cancelamento -->
+  <!-- MODAL -->
   <div id="modal-cancelar" class="modal hidden">
     <div class="modal-box">
       <h3>Cancelar pedido</h3>
-      <p id="modal-nome-pedido" class="modal-sub"></p>
-      <textarea id="motivo-cancelamento" placeholder="Motivo do cancelamento (opcional)" rows="3"></textarea>
+      <textarea id="motivo-cancelamento"></textarea>
+
       <div class="modal-acoes">
-        <button id="btn-confirmar-cancelar" class="btn-danger">Confirmar cancelamento</button>
-        <button id="btn-fechar-modal" class="btn-ghost">Voltar</button>
+        <button type="button" id="btn-confirmar-cancelar" class="btn-danger">Confirmar</button>
+        <button type="button" id="btn-fechar-modal" class="btn-ghost">Voltar</button>
       </div>
     </div>
   </div>
