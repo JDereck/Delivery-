@@ -56,7 +56,9 @@ function doGet(e) {
   if (p.action === "salvarcliente")  return salvarCliente(p);
   if (p.action === "listarclientes") return listarClientes();
 
-  return jsonResp({ ok: true, msg: "Script ativo" });
+  return ContentService
+    .createTextOutput("✅ Script ativo e funcionando!")
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 // ============================================================
