@@ -23,23 +23,13 @@ let abaAtual = "pedidos";
 const DIAS_PT = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 // ============================================================
-//  VERIFICAÇÃO DE HORÁRIO
+//  UTILITÁRIOS
 // ============================================================
-function verificarHorario() {
-  const agora = new Date();
-  const diaNome = DIAS_PT[agora.getDay()];
-  if (CONFIG.diasFechado.includes(diaNome)) return false;
-
-  const [hA, mA] = CONFIG.horarioAbertura.split(":").map(Number);
-  const [hF, mF] = CONFIG.horarioFechamento.split(":").map(Number);
-
-  const minAgora = agora.getHours() * 60 + agora.getMinutes();
-  return minAgora >= hA * 60 + mA && minAgora < hF * 60 + mF;
-}
-
-// ============================================================
-//  FUNÇÕES QUE FALTAVAM (CORREÇÃO IMPORTANTE)
-// ============================================================
+const fmt = (v) =>
+  Number(v || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 
 function formatarHora(data) {
   const d = new Date(data);
@@ -59,49 +49,23 @@ function esc(str) {
     .replaceAll("'", "&#039;");
 }
 
-function renderAcoes(p) {
-  return `
-    <div class="card-acoes">
-      <button onclick="alert('Pedido ${p.row}')">Ver</button>
-    </div>
-  `;
-}
+// ============================================================
+//  VERIFICAÇÃO DE HORÁRIO
+// ============================================================
+function verificarHorario() {
+  const agora = new Date();
+  const diaNome = DIAS_PT[agora.getDay()];
+  if (CONFIG.diasFechado.includes(diaNome)) return false;
 
-async function apiCancelar(row, motivo) {
-  const url = CONFIG.sheetsUrl +
-    "?action=cancelar&row=" + row +
-    "&motivo=" + encodeURIComponent(motivo);
+  const [hA, mA] = CONFIG.horarioAbertura.split(":").map(Number);
+  const [hF, mF] = CONFIG.horarioFechamento.split(":").map(Number);
 
-  const res = await fetch(url);
-  return await res.json();
+  const minAgora = agora.getHours() * 60 + agora.getMinutes();
+  return minAgora >= hA * 60 + mA && minAgora < hF * 60 + mF;
 }
 
 // ============================================================
-//  TROCA DE ABAS
-// ============================================================
-function ativarAba(aba) {
-  abaAtual = aba;
-
-  document.querySelectorAll(".tab-btn").forEach(b =>
-    b.classList.toggle("active", b.dataset.aba === aba));
-
-  document.getElementById("sec-pedidos").classList.toggle("hidden", aba !== "pedidos");
-  document.getElementById("sec-cardapio").classList.toggle("hidden", aba !== "cardapio");
-  document.getElementById("sec-clientes").classList.toggle("hidden", aba !== "clientes");
-  document.getElementById("sec-config").classList.toggle("hidden", aba !== "config");
-
-  document.getElementById("btn-refresh").style.display = aba === "pedidos" ? "" : "none";
-
-  if (aba === "cardapio") carregarCardapioEditor();
-  if (aba === "clientes") carregarClientes();
-  if (aba === "config") carregarConfig();
-}
-
-document.querySelectorAll(".tab-btn").forEach(btn =>
-  btn.addEventListener("click", () => ativarAba(btn.dataset.aba)));
-
-// ============================================================
-//  API GET
+//  API (GET / STATUS / CANCELAR)
 // ============================================================
 async function apiGet(params) {
   const base = CONFIG.sheetsUrl;
@@ -119,84 +83,54 @@ async function apiGet(params) {
   }
 }
 
-// ============================================================
-//  SOM
-// ============================================================
-function tocarNotificacao() {
+async function mudarStatus(row, novoStatus) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const data = await apiGet({ action: "status", row: row, status: novoStatus });
+    if (data.ok) {
+      // Atualiza localmente para dar feedback rápido
+      const idx = todosOsPedidos.findIndex(p => p.row === row);
+      if (idx !== -1) todosOsPedidos[idx].status = novoStatus;
+      
+      renderPedidos();
+      renderResumo(todosOsPedidos);
+    }
+  } catch (err) {
+    alert("Erro ao atualizar status.");
+  }
+}
 
-    [0, 0.18].forEach(delay => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.frequency.value = 880;
-
-      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + delay + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.4);
-
-      osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime + delay + 0.4);
-    });
-  } catch (_) {}
+async function apiCancelar(row, motivo) {
+  return await apiGet({ action: "cancelar", row: row, motivo: motivo });
 }
 
 // ============================================================
-//  RESUMO
+//  RENDERIZAÇÃO DE PEDIDOS
 // ============================================================
-function renderResumo(pedidos) {
-  const hoje = new Date().toDateString();
+function renderAcoes(p) {
+  if (p.status === "Entregue" || p.status === "Cancelado") return "";
 
-  const doDia = pedidos.filter(p =>
-    p.dataHora && new Date(p.dataHora).toDateString() === hoje
-  );
-
-  const faturamento = doDia
-    .filter(p => p.status !== "Cancelado")
-    .reduce((s, p) => s + (p.total || 0), 0);
-
-  document.getElementById("total-pedidos").textContent = doDia.length;
-  document.getElementById("total-faturamento").textContent = fmt(faturamento);
-
-  document.getElementById("total-aberto").textContent =
-    doDia.filter(p =>
-      ["Novo", "Em Preparo", "Saiu pra Entrega"].includes(p.status)
-    ).length;
-
-  document.getElementById("total-cancelados").textContent =
-    doDia.filter(p => p.status === "Cancelado").length;
+  return `
+    <div class="card-acoes">
+      <button onclick="mudarStatus(${p.row}, 'Em Preparo')" class="btn-preparo">👨‍🍳 Preparar</button>
+      <button onclick="mudarStatus(${p.row}, 'Saiu pra Entrega')" class="btn-entrega">🛵 Enviar</button>
+      <button onclick="mudarStatus(${p.row}, 'Entregue')" class="btn-ok">✅ Entregue</button>
+      <button onclick="abrirModalCancelamento(${p.row})" class="btn-cancel">❌</button>
+    </div>
+  `;
 }
 
-// ============================================================
-//  CARD PEDIDO (CORRIGIDO STATUS)
-// ============================================================
 function renderCard(p) {
-
   const num = `#${String(p.row - 1).padStart(3, "0")}`;
   const hora = p.dataHora ? formatarHora(p.dataHora) : "—";
   const tipo = p.tipo || "entrega";
+  const statusClass = (p.status || "novo").toLowerCase().replace(/ /g, "-");
 
-  const statusClass = (p.status || "novo")
-    .toLowerCase()
-    .replace(/ /g, "-");
-
-  const itensHtml = (p.itens || "")
-    .split(" | ")
-    .filter(Boolean)
+  const itensHtml = (p.itens || "").split(" | ").filter(Boolean)
     .map(i => `<span class="card-item-linha">${esc(i)}</span>`).join("");
 
-  const obsHtml = (p.obs && p.obs !== "-")
-    ? `<div class="card-obs">${esc(p.obs)}</div>` : "";
-
-  const motivoHtml = (p.status === "Cancelado" && p.motivo)
-    ? `<div class="motivo-cancelamento">${esc(p.motivo)}</div>` : "";
-
-  const enderecoHtml = tipo === "entrega"
-    ? `<div class="card-endereco">📍 ${esc(p.endereco)}</div>` : "";
+  const obsHtml = (p.obs && p.obs !== "-") ? `<div class="card-obs">${esc(p.obs)}</div>` : "";
+  const motivoHtml = (p.status === "Cancelado" && p.motivo) ? `<div class="motivo-cancelamento">${esc(p.motivo)}</div>` : "";
+  const enderecoHtml = tipo === "entrega" ? `<div class="card-endereco">📍 ${esc(p.endereco)}</div>` : "";
 
   return `
     <div class="pedido-card" data-row="${p.row}">
@@ -205,107 +139,160 @@ function renderCard(p) {
           <span class="card-num">Pedido ${num}</span>
           <span class="card-hora"> · ${hora}</span>
         </div>
-
-        <span class="status-pill status-${statusClass}">
-          ${esc(p.status)}
-        </span>
+        <span class="status-pill status-${statusClass}">${esc(p.status)}</span>
       </div>
-
       <div class="card-body">
         <div class="card-cliente">${esc(p.nome)}</div>
         ${enderecoHtml}
         <div class="card-itens">${itensHtml}</div>
         ${obsHtml}
       </div>
-
       ${renderAcoes(p)}
       ${motivoHtml}
     </div>
   `;
 }
 
+function renderPedidos() {
+  const container = document.getElementById("grid-pedidos");
+  if (!container) return;
+
+  const filtrados = todosOsPedidos.filter(p => 
+    filtroAtual === "todos" || p.status.toLowerCase() === filtroAtual.toLowerCase()
+  );
+
+  container.innerHTML = filtrados.map(renderCard).join("");
+}
+
 // ============================================================
-//  CANCELAMENTO
+//  MODAL CANCELAMENTO
 // ============================================================
+function abrirModalCancelamento(row) {
+  pendenteCancelar = { row };
+  document.getElementById("modal-cancelar").classList.remove("hidden");
+  document.getElementById("motivo-cancelamento").value = "";
+}
+
+function fecharModal() {
+  document.getElementById("modal-cancelar").classList.add("hidden");
+  pendenteCancelar = null;
+}
+
 async function confirmarCancelamento() {
-  if (!pendenteCancelar || !pendenteCancelar.row) return;
-
-  const row = pendenteCancelar.row;
-  const motivo =
-    document.getElementById("motivo-cancelamento").value.trim() ||
-    "Sem motivo informado";
-
-  const btnEl = document.getElementById("btn-confirmar-cancelar");
-  btnEl.disabled = true;
-  btnEl.textContent = "⏳ Cancelando...";
-
-  const data = await apiCancelar(row, motivo);
-
-  fecharModal();
-
+  if (!pendenteCancelar) return;
+  
+  const motivo = document.getElementById("motivo-cancelamento").value.trim() || "Sem motivo";
+  const btn = document.getElementById("btn-confirmar-cancelar");
+  
+  btn.disabled = true;
+  const data = await apiCancelar(pendenteCancelar.row, motivo);
+  
   if (data.ok) {
-    const idx = todosOsPedidos.findIndex(p => p.row === row);
+    const idx = todosOsPedidos.findIndex(p => p.row === pendenteCancelar.row);
     if (idx !== -1) {
       todosOsPedidos[idx].status = "Cancelado";
       todosOsPedidos[idx].motivo = motivo;
     }
     renderPedidos();
     renderResumo(todosOsPedidos);
+    fecharModal();
   }
-
-  btnEl.disabled = false;
-  btnEl.textContent = "Confirmar cancelamento";
+  btn.disabled = false;
 }
 
 // ============================================================
-//  CLIENTES
+//  CLIENTES & RESUMO
 // ============================================================
+function renderResumo(pedidos) {
+  const hoje = new Date().toDateString();
+  const doDia = pedidos.filter(p => p.dataHora && new Date(p.dataHora).toDateString() === hoje);
+  const faturamento = doDia.filter(p => p.status !== "Cancelado").reduce((s, p) => s + (p.total || 0), 0);
+
+  document.getElementById("total-pedidos").textContent = doDia.length;
+  document.getElementById("total-faturamento").textContent = fmt(faturamento);
+  document.getElementById("total-aberto").textContent = doDia.filter(p => ["Novo", "Em Preparo", "Saiu pra Entrega"].includes(p.status)).length;
+  document.getElementById("total-cancelados").textContent = doDia.filter(p => p.status === "Cancelado").length;
+}
+
 function renderClienteCard(c) {
-
   const statusCls = `status-pill-${c.status}`;
-
-  const enderecos = (c.enderecos || []).slice(0, 3)
-    .map(e => `<div class="cli-end-item">${esc(e)}</div>`).join("");
-
-  const msgPromo = encodeURIComponent(
-    `Olá ${c.nome.split(" ")[0]}! 👋 Promoções especiais para você.`
-  );
-
-  const wppLink = `https://wa.me/${c.whatsapp}?text=${msgPromo}`;
+  const wppLink = `https://wa.me/${c.whatsapp}?text=Olá ${c.nome.split(" ")[0]}!`;
 
   return `
     <div class="cliente-card">
-
       <div class="cli-top">
         <div>
           <div class="cli-nome">${esc(c.nome)}</div>
           <div class="cli-wpp">${esc(c.whatsapp)}</div>
         </div>
-
-        <span class="status-pill ${statusCls}">
-          ${c.status}
-        </span>
+        <span class="status-pill ${statusCls}">${c.status}</span>
       </div>
-
       <div class="cli-stats">
-        <div class="cli-stat">
-          <span class="cli-stat-label">Pedidos</span>
-          <span class="cli-stat-val">${c.qtdPedidos}</span>
-        </div>
-
-        <div class="cli-stat">
-          <span class="cli-stat-label">Total gasto</span>
-          <span class="cli-stat-val">${fmt(c.totalGasto)}</span>
-        </div>
+        <div class="cli-stat"><span>Pedidos</span><strong>${c.qtdPedidos}</strong></div>
+        <div class="cli-stat"><span>Total</span><strong>${fmt(c.totalGasto)}</strong></div>
       </div>
-
-      ${enderecos ? `<div class="cli-enderecos">${enderecos}</div>` : ""}
-
-      <div class="cli-acoes">
-        <a href="${wppLink}" target="_blank" class="btn-wpp-promo">
-          💬 Enviar promoção
-        </a>
-      </div>
+      <div class="cli-acoes"><a href="${wppLink}" target="_blank" class="btn-wpp-promo">💬 Promoção</a></div>
     </div>
   `;
 }
+
+// ============================================================
+//  CONTROLE DE ABAS E CARREGAMENTO
+// ============================================================
+async function atualizarDados() {
+  try {
+    const res = await apiGet({ action: "pedidos" });
+    if (res.ok) {
+      todosOsPedidos = res.pedidos;
+      
+      // Lógica de Notificação para novos pedidos
+      if (!primeiraLeitura) {
+         const novos = todosOsPedidos.filter(p => p.status === "Novo" && !idsConhecidos.has(p.row));
+         if (novos.length > 0) tocarNotificacao();
+      }
+      
+      todosOsPedidos.forEach(p => idsConhecidos.add(p.row));
+      primeiraLeitura = false;
+      
+      renderPedidos();
+      renderResumo(todosOsPedidos);
+      document.getElementById("ultima-atualizacao").textContent = new Date().toLocaleTimeString();
+    }
+  } catch (err) { console.error("Erro ao atualizar:", err); }
+}
+
+function ativarAba(aba) {
+  abaAtual = aba;
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.aba === aba));
+  document.getElementById("sec-pedidos").classList.toggle("hidden", aba !== "pedidos");
+  document.getElementById("sec-clientes").classList.toggle("hidden", aba !== "clientes");
+  // ... adicione outras abas conforme necessário
+  if (aba === "pedidos") atualizarDados();
+}
+
+function tocarNotificacao() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  [0, 0.2].forEach(d => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 600;
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + d + 0.5);
+    o.start(ctx.currentTime + d); o.stop(ctx.currentTime + d + 0.5);
+  });
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  atualizarDados();
+  setInterval(atualizarDados, CONFIG.intervaloAtualizacao * 1000);
+  
+  document.querySelectorAll(".tab-btn").forEach(btn => 
+    btn.addEventListener("click", () => ativarAba(btn.dataset.aba))
+  );
+
+  document.getElementById("btn-confirmar-cancelar")?.addEventListener("click", confirmarCancelamento);
+  document.getElementById("btn-refresh")?.addEventListener("click", atualizarDados);
+});
