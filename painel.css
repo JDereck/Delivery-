@@ -150,6 +150,44 @@ header h1 {
   border-color: var(--text);
 }
 
+/* =========================================================
+   STATUS DOS PEDIDOS (CORREÇÃO IMPORTANTE)
+   ========================================================= */
+
+.status-pill {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* STATUS DINÂMICOS (JS usa status-Nome) */
+.status-Novo {
+  background: rgba(59,130,246,.15);
+  color: var(--novo);
+}
+
+.status-Em-Preparo {
+  background: rgba(249,115,22,.15);
+  color: var(--preparo);
+}
+
+.status-Saiu-pra-Entrega {
+  background: rgba(168,85,247,.15);
+  color: var(--saiu);
+}
+
+.status-Entregue {
+  background: rgba(34,197,94,.15);
+  color: var(--entregue);
+}
+
+.status-Cancelado {
+  background: rgba(239,68,68,.15);
+  color: var(--cancelado);
+}
+
 /* ── GRID ── */
 .pedidos-grid {
   display: grid;
@@ -186,10 +224,7 @@ header h1 {
   border-bottom: 1px solid var(--border);
 }
 
-/* status etc mantido igual... */
-
-/* ── CLIENTES (CORRIGIDO - SEM DUPLICAÇÃO) ── */
-
+/* ── CLIENTES ── */
 .cliente-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -197,30 +232,17 @@ header h1 {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.15s;
-}
-
-.cliente-card:hover {
-  border-color: #4b5563;
 }
 
 .cli-top {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem 0.5rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
 }
 
-.cli-nome {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.cli-wpp {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
+.cli-nome { font-weight: 700; }
+.cli-wpp { font-size: 0.75rem; color: var(--muted); }
 
 .status-pill-Ativo {
   background: rgba(34,197,94,.2);
@@ -240,61 +262,42 @@ header h1 {
 .cli-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
   padding: 0.75rem 1rem;
-}
-
-.cli-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.5rem;
 }
 
 .cli-stat-label {
   font-size: 0.7rem;
   color: var(--muted);
-  text-transform: uppercase;
 }
 
 .cli-stat-val {
-  font-size: 0.95rem;
   font-weight: 700;
 }
 
 .cli-enderecos {
   padding: 0 1rem 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
 }
 
 .cli-end-item {
   font-size: 0.8rem;
-  color: var(--text);
-  padding-left: 0.5rem;
   border-left: 2px solid var(--border);
+  padding-left: 0.5rem;
 }
 
 .cli-acoes {
-  padding: 0 1rem 0.85rem;
-  display: flex;
-  gap: 0.5rem;
+  padding: 0 1rem 1rem;
 }
 
 .btn-wpp-promo {
-  flex: 1;
+  display: block;
+  text-align: center;
   background: #25d366;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
+  color: white;
   padding: 0.5rem;
-  font-size: 0.82rem;
+  border-radius: 8px;
   font-weight: 700;
-  cursor: pointer;
-}
-
-.btn-wpp-promo:hover {
-  background: #1ebe57;
+  text-decoration: none;
 }
 
 /* ── RESPONSIVO ── */
@@ -303,7 +306,6 @@ header h1 {
 
   .pedidos-grid {
     grid-template-columns: 1fr;
-    padding: 0.75rem;
   }
 
   .resumo-dia {
