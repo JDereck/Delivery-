@@ -8,7 +8,7 @@ const CONFIG = {
   horarioFechamento:   "02:00",           // Horário de fechamento HH:MM
   diasFechado:         [""],       // Dias fechados: domingo|segunda|terça|quarta|quinta|sexta|sábado
   nomeEstabelecimento: "Sandra Lanche",        // Nome exibido no topo da página
-  sheetsUrl:           "",               // URL do Google Apps Script (deixe "" para desativar)
+  sheetsUrl:           "https://script.google.com/macros/s/AKfycbyLA5WVc0aNETsiiwLg-A_OlaLlnpBbeDeKnlF6hMvMvkFFqj918UmHDnhz9Uy5sYKL/exec",               // URL do Google Apps Script (deixe "" para desativar)
 };
 
 // ============================================================
