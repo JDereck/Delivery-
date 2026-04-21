@@ -2,7 +2,7 @@
 //  CONFIG — mesma URL usada em app.js
 // ============================================================
 const CONFIG = {
-  sheetsUrl:            "",         // ← cole aqui a URL do Apps Script
+  sheetsUrl:            "https://script.google.com/macros/s/AKfycbyLA5WVc0aNETsiiwLg-A_OlaLlnpBbeDeKnlF6hMvMvkFFqj918UmHDnhz9Uy5sYKL/exec",         // ← cole aqui a URL do Apps Script
   nomeEstabelecimento:  "Delivery",
   horarioAbertura:      "18:00",
   horarioFechamento:    "23:00",
