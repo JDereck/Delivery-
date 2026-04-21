@@ -10,6 +10,7 @@ const CONFIG = {
 // ============================================================
 let cardapio = [];
 let carrinho = [];
+let enviandoPedido = false; // ✔️ CORREÇÃO: evita envio duplo
 
 // ============================================================
 // UTILITÁRIOS
@@ -26,8 +27,9 @@ const esc = (str) =>
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 
-function toast(msg) {
-  console.log(msg); // você pode depois trocar por UI toast
+// ✔️ CORREÇÃO: valida telefone simples
+function limparTelefone(v) {
+  return String(v || "").replace(/\D/g, "");
 }
 
 // ============================================================
@@ -129,6 +131,12 @@ function adicionarCarrinho(id) {
   atualizarCarrinho();
 }
 
+// ✔️ CORREÇÃO: remover item
+function removerItem(id) {
+  carrinho = carrinho.filter((i) => i.id !== id);
+  atualizarCarrinho();
+}
+
 // ============================================================
 // ATUALIZAR CARRINHO
 // ============================================================
@@ -156,6 +164,7 @@ function atualizarCarrinho() {
           <span>${esc(i.nome)}</span>
           <span>${i.qtd}x</span>
           <strong>${fmt(i.preco * i.qtd)}</strong>
+          <button onclick="removerItem('${i.id}')">❌</button>
         </div>
       `;
     })
@@ -171,14 +180,16 @@ function atualizarCarrinho() {
 async function enviarPedido(event) {
   event.preventDefault();
 
+  if (enviandoPedido) return; // ✔️ CORREÇÃO DUPLO CLICK
+
   if (carrinho.length === 0) {
     alert("Carrinho vazio");
     return;
   }
 
-  const nome = document.getElementById("campo-nome").value;
-  const whatsapp = document.getElementById("campo-whatsapp").value;
-  const endereco = document.getElementById("campo-endereco").value;
+  const nome = document.getElementById("campo-nome").value.trim();
+  const whatsapp = limparTelefone(document.getElementById("campo-whatsapp").value);
+  const endereco = document.getElementById("campo-endereco").value.trim();
   const pagamento = document.getElementById("campo-pagamento").value;
   const obs = document.getElementById("campo-obs").value;
 
@@ -187,14 +198,15 @@ async function enviarPedido(event) {
     return;
   }
 
-  const itens = carrinho
-    .map((i) => `${i.nome} x${i.qtd}`)
-    .join(" | ");
+  enviandoPedido = true;
 
-  const total = carrinho.reduce(
-    (a, b) => a + b.preco * b.qtd,
-    0
-  );
+  const btn = document.getElementById("btn-finalizar");
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+
+  const itens = carrinho.map((i) => `${i.nome} x${i.qtd}`).join(" | ");
+
+  const total = carrinho.reduce((a, b) => a + b.preco * b.qtd, 0);
 
   const pedido = {
     nome,
@@ -209,16 +221,24 @@ async function enviarPedido(event) {
   try {
     await fetch(CONFIG.sheetsUrl, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pedido),
     });
 
     alert("Pedido enviado com sucesso!");
+
     carrinho = [];
     atualizarCarrinho();
+    document.getElementById("form-pedido").reset();
+
   } catch (err) {
     console.error(err);
     alert("Erro ao enviar pedido");
   }
+
+  enviandoPedido = false;
+  btn.disabled = false;
+  btn.textContent = "🚀 Enviar pedido agora";
 }
 
 // ============================================================
